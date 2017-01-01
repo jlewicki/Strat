@@ -98,8 +98,8 @@ with
    member this.Unhandled() = 
       MessageResult.Unhandled
 
-   /// Returns an message result indicating that the state machine should tranmsition to the terminated state, and 
-   ///stop all further message processing.
+   /// Returns a message result indicating that the state machine should tranmsition to the terminated state, and 
+   /// stop all further message processing.
    member this.Stop(?reason: string, ?code: int) = 
       let stopReason = 
          if reason.IsSome || code.IsSome then 

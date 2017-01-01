@@ -1,0 +1,3 @@
+- Lazy instantiation of state
+- Finish separation between F# Builder types and C# interop builders
+- State creation via DI (maybe just accept Func<StateHandler)) in DefineState 

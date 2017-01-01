@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -8,7 +8,7 @@
     <ProjectGuid>045b1f33-3b03-4759-9e73-f50423ea352f</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>Strat.StateMachine.Profile7</RootNamespace>
-    <AssemblyName>Strat.StateMachine.Profile7</AssemblyName>
+    <AssemblyName>Strat.StateMachine</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <TargetFrameworkProfile>Profile7</TargetFrameworkProfile>
     <TargetProfile>netcore</TargetProfile>
@@ -21,19 +21,19 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>bin\Debug\Profile7</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\Strat.StateMachine.Profile7.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\Profile7\Strat.StateMachine.Profile7.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>bin\Release\Profile7</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\Strat.StateMachine.Profile7.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\Profile7\Strat.StateMachine.Profile7.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">
@@ -43,12 +43,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="State.fs" />
-    <Compile Include="Machine.fs" />
-    <Compile Include="Agent.fs" />
-    <Compile Include="Define.fs" />
+    <Compile Include="../AssemblyInfo.fs" />
+    <Compile Include="../Types.fs" />
+    <Compile Include="../State.fs" />
+    <Compile Include="../Machine.fs" />
+    <Compile Include="../Agent.fs" />
+    <Compile Include="../Definition.fs" />
+    <Compile Include="../Interop.fs" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">12</MinimumVisualStudioVersion>
