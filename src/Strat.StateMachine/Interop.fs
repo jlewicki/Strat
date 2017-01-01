@@ -140,7 +140,7 @@ type StateBuilderBase<'D,'M>() =
       stateBuilders
       |> Seq.fold (fun stateTree (name, builder) -> 
          let newState = builder rootState
-         let newStates = stateTree.States |> Map.add name newState 
+         let newStates = stateTree.States |> Map.add name (lazy newState) 
          { stateTree with States = newStates }
       ) initStateTree
 
@@ -220,13 +220,13 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onEnter: AsyncTransitionHandler<'D,'M>,
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) = 
 
-      let build parentState = 
+      let build (lazyParent: Lazy<State<_,_>>) = 
          let handler = 
             Async.toHandler 
                (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
                (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
                (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
-         State.Intermediate (name, parentState, handler, initialTransition)
+         lazy (Intermediate (name, lazyParent.Value, handler, initialTransition))
       this.AddChildState parent (name, build)
       this
 
@@ -238,12 +238,12 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onEnter: AsyncTransitionHandler<'D,'M>,
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) = 
 
-      let build parentState = 
+      let build (lazyParent: Lazy<State<_,_>>) = 
          let handler = 
             Async.toHandler 
                (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
                (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
                (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
-         State.Leaf (name, parentState, handler)
+         lazy (Leaf (name, lazyParent.Value, handler))
       this.AddChildState parent (name, build)
       this

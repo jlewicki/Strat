@@ -47,7 +47,7 @@ module StateMachine =
    /// Returns the state with the specified name, or throws an exception.
    let private findState stateName (stateTree: StateTree<'D,'M>) =
       match stateTree.States |> Map.tryFind stateName with
-      | Some(state) -> state
+      | Some(state) -> state.Value
       | None -> invalidOp <| sprintf "Unable to find a state with name %A in the state tree." name
 
 

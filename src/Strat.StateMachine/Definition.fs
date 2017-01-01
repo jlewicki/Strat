@@ -133,7 +133,7 @@ module Define =
    /// Describes a function that, given a parent state and state tree, will create a new child state, and an updated 
    /// state tree.
    type StateDef<'D,'M> = 
-      State<'D,'M> * StateTree<'D,'M> -> State<'D,'M> * StateTree<'D,'M>
+      Lazy<State<'D,'M>> * StateTree<'D,'M> -> Lazy<State<'D,'M>> * StateTree<'D,'M>
 
    /// Throws if the specified name is already in the map.
    let private ensureUniqueName name map = 
@@ -148,23 +148,20 @@ module Define =
       static member With( stateName: StateName ) : InitialTransition<'D> = 
          fun ctx -> async.Return (ctx, stateName)
 
-
    /// Defines a leaf state in a state tree that processes messages using the specified asynchronous handler 
    /// functions. 
    let asyncLeaf (name: StateName) (handler:StateHandler<'D,'M>) : StateDef<'D,'M> = 
       if isNull (name :> obj) then nullArg "name"
       fun (parent,tree) -> 
-         let state = Leaf(name, parent, handler)
+         let lazyState = lazy (Leaf(name, parent.Value, handler))
          ensureUniqueName name tree.States
-         state, { tree with States = tree.States |> Map.add name state }
-
+         lazyState, { tree with States = tree.States |> Map.add name lazyState }
 
    /// Defines a leaf state in a state tree that processes messages using the specified synchronous handler 
    /// functions. 
    let syncLeaf (name: StateName) (handler:Sync.StateHandler<'D,'M>) : StateDef<'D,'M> = 
       if isNull (name :> obj) then nullArg "name"
       asyncLeaf name (Sync.convertToAsync handler)
-
 
    /// Defines an intermediate state in a state tree that processes messages using the specified asynchronous handler 
    /// handler functions. 
@@ -176,14 +173,14 @@ module Define =
 
       if isNull (name :> obj) then nullArg "name"
       fun (parent,tree) -> 
-         let state = State.Intermediate (name, parent, handler, initialTransition)
+         let lazyState = lazy (State.Intermediate (name, parent.Value, handler, initialTransition))
          let _, tree = 
             childStates 
             |> Seq.fold (fun (children,tree) stateDef -> 
-               let state, tree = stateDef (state,tree)
-               state::children, tree) (List.empty, tree)
+               let lazyChild, tree = stateDef (lazyState, tree)
+               lazyChild::children, tree) (List.empty, tree)
          ensureUniqueName name tree.States
-         state, { tree with States = tree.States |> Map.add name state }
+         lazyState, { tree with States = tree.States |> Map.add name lazyState }
 
 
    /// Defines an intermediate state in a state tree that processes messages using the specified synchronous handler 
@@ -207,15 +204,16 @@ module Define =
       (childStates: seq<StateDef<'D,'M>>) : StateTree<'D,'M> =
 
       if isNull (rootStateName :> obj) then nullArg "rootStateName"
-      let rootState = State.Root (rootStateName, handler, initialTransition)
+      let root = Root (rootStateName, handler, initialTransition)
+      let lazyRoot = lazy root
       let _, tree = 
          childStates 
          |> Seq.fold (fun (children,map) stateDef -> 
-            let state, tree = stateDef (rootState,map)
-            state::children, tree
-          ) (List.empty, { Root = rootState; States = Map.empty })
+            let lazyChild, tree = stateDef (lazyRoot, map)
+            lazyChild::children, tree
+          ) (List.empty, { Root = root; States = Map.empty })
       ensureUniqueName rootStateName tree.States
-      { tree with States = tree.States |> Map.add rootStateName rootState }
+      { tree with States = tree.States |> Map.add rootStateName lazyRoot }
 
 
    /// Constructs a new state tree with rooted at a state with the specified name, initial transition, handlers, and
@@ -239,7 +237,7 @@ module Define =
 
 module internal Build =
    // Function that creates a child state, given it's parent state
-   type internal StateCreator<'D,'M> = State<'D,'M> -> State<'D,'M>
+   type internal StateCreator<'D,'M> = Lazy<State<'D,'M>> -> Lazy<State<'D,'M>>
    type internal ChildBuilder<'D,'M> = StateName * StateCreator<'D,'M>
 
 
@@ -265,10 +263,11 @@ type StateBuilderBase<'D,'M>() =
       let initTransition = fun ctx -> async.Return (ctx, (stateBuilders |> Seq.head |> fst))
       let rootState = State.Root (StateName "RootState", Async.emptyHandler, initTransition)
       let initStateTree = { Root = rootState; States = Map.empty }
+      let lazyRoot = lazy rootState
 
       stateBuilders
       |> Seq.fold (fun stateTree (name, builder) -> 
-         let newState = builder rootState
+         let newState = builder lazyRoot
          let newStates = stateTree.States |> Map.add name newState 
          { stateTree with States = newStates }
       ) initStateTree
@@ -280,11 +279,10 @@ type StateBuilderBase<'D,'M>() =
 type StateTreeBuilderBase<'D, 'M>() = 
    let mutable rootState = Option.None
    // Map of parent states names, keyed by childstate name 
-   let parentMap = Dictionary<StateName, StateName>()
    // Map of child states names, keyed by parent state name 
    let childMap = Dictionary<StateName, ResizeArray<ChildBuilder<'D,'M>>>()
+
    member internal this.AddChildState parentName childBuilder = 
-      parentMap.Add ((childBuilder |> fst), parentName) 
       match childMap.TryGetValue parentName with
       | true, children -> 
          children.Add childBuilder
@@ -300,20 +298,21 @@ type StateTreeBuilderBase<'D, 'M>() =
    member this.ToStateTree() : StateTree<'D,'M> =
       if rootState.IsNone then raise <| invalidOp "Missing root state"
 
-      let rec buildChildStates parentState stateTree = 
-         match childMap.TryGetValue (parentState |> State.name) with
+      let rec buildChildStates parentStateName stateTree = 
+         match childMap.TryGetValue parentStateName with
          | true, childBuilders -> 
             childBuilders 
             |> Seq.fold (fun stateTree (childName, builder) -> 
-               let childState = builder parentState
-               let newStates = stateTree.States |> Map.add childName childState 
+               let lazyParentState = stateTree.States |> Map.find parentStateName 
+               let lazyChildState = builder lazyParentState
+               let newStates = stateTree.States |> Map.add childName lazyChildState 
                let stateTree = { stateTree with States = newStates }
-               buildChildStates childState stateTree ) stateTree 
+               buildChildStates childName stateTree ) stateTree 
          | false, _ -> 
             stateTree
       
       let initStateTree = { Root = rootState.Value; States = Map.empty }         
-      buildChildStates rootState.Value initStateTree
+      buildChildStates rootState.Value.Name initStateTree
 
 
 
@@ -331,8 +330,8 @@ type StateBuilder<'D,'M>() =
         ?onEnter: TransitionHandler<'D,'M>, 
         ?onExit: TransitionHandler<'D,'M> ) = 
 
-      let build rootState = 
-         State.Leaf (name, rootState, (Async.toHandler onMessage onEnter onExit))
+      let build (rootState: Lazy<State<_,_>>) = 
+         lazy (Leaf (name, rootState.Value, (Async.toHandler onMessage onEnter onExit)))
       this.AddState name build
       this
 
@@ -343,9 +342,9 @@ type StateBuilder<'D,'M>() =
         ?onEnter: Sync.TransitionHandler<'D,'M>, 
         ?onExit: Sync.TransitionHandler<'D,'M> ) = 
 
-      let build rootState = 
+      let build (rootState: Lazy<State<_,_>>) = 
          let handler = Sync.toAsyncHandler onMessage onEnter onExit
-         State.Leaf (name, rootState, handler)
+         lazy (Leaf (name, rootState.Value, handler))
 
       this.AddState name build
       this
@@ -391,8 +390,8 @@ type StateTreeBuilder<'D, 'M>() =
         ?onEnter: TransitionHandler<'D,'M>, 
         ?onExit: TransitionHandler<'D,'M> ) = 
 
-      let build parentState = 
-         State.Intermediate (name, parentState, (Async.toHandler onMessage onEnter onExit), initialTransition)
+      let build (lazyParent: Lazy<State<_,_>>) = 
+         lazy (Intermediate (name, lazyParent.Value, (Async.toHandler onMessage onEnter onExit), initialTransition))
       this.AddChildState parent (name, build)
       this
 
@@ -405,8 +404,8 @@ type StateTreeBuilder<'D, 'M>() =
         ?onEnter: Sync.TransitionHandler<'D,'M>, 
         ?onExit: Sync.TransitionHandler<'D,'M> ) = 
 
-      let build parentState = 
-         State.Intermediate (name, parentState, (Sync.toAsyncHandler onMessage onEnter onExit), initialTransition)
+      let build (lazyParent: Lazy<State<_,_>>) = 
+         lazy (Intermediate (name, lazyParent.Value, (Sync.toAsyncHandler onMessage onEnter onExit), initialTransition))
       this.AddChildState parent (name, build)
       this
 
@@ -418,8 +417,8 @@ type StateTreeBuilder<'D, 'M>() =
         ?onEnter: TransitionHandler<'D,'M>, 
         ?onExit: TransitionHandler<'D,'M> ) = 
 
-      let build parentState = 
-         State.Leaf (name, parentState, (Async.toHandler onMessage onEnter onExit))
+      let build (lazyParent: Lazy<State<_,_>>) = 
+         lazy (Leaf (name, lazyParent.Value, (Async.toHandler onMessage onEnter onExit)))
       this.AddChildState parent (name, build)
       this
 
@@ -431,7 +430,7 @@ type StateTreeBuilder<'D, 'M>() =
         ?onEnter: Sync.TransitionHandler<'D,'M>, 
         ?onExit: Sync.TransitionHandler<'D,'M> ) = 
 
-      let build parentState = 
-         State.Leaf (name, parentState, (Sync.toAsyncHandler onMessage onEnter onExit))
+      let build (lazyParent: Lazy<State<_,_>>) = 
+        lazy (Leaf (name, lazyParent.Value, (Sync.toAsyncHandler onMessage onEnter onExit)))
       this.AddChildState parent (name, build)
       this
