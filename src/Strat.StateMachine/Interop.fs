@@ -51,12 +51,17 @@ and AsyncMessageHandler<'D,'M> = Func<IMessageContext<'D,'M>, Task<MessageResult
 /// Similar to TransitionHandler, defined with interop-friendly types
 and AsyncTransitionHandler<'D,'M> = Func<TransitionContext<'D,'M>, Task<'D>>
 
+/// Similar to IntialTransition, defined with interop-friendly types
+type AsyncIntialTransition<'D> = Func<'D, Task<'D * StateName>>
+
 /// Synchronous message handler, defined with interop-friendly types
 type SyncMessageHandler<'D,'M> = Func<IMessageContext<'D,'M>, MessageResult<'D,'M>>
 
 /// Synchronous transition handler, defined with interop-friendly types
 type SyncTransitionHandler<'D,'M> = Func<TransitionContext<'D,'M>, 'D>
 
+/// Synchronous initial transition function, defined with interop-friendly types
+type SyncIntialTransition<'D> = Func<'D, 'D * StateName>
 
 module internal Interop = 
 
@@ -194,39 +199,71 @@ type StateBuilder<'D,'M>() =
 /// </summary>
 type StateTreeBuilder<'D, 'M>() =
    inherit StateTreeBuilderBase<'D,'M>()
- 
+
+   member private this.ToHandler(onMessage, onEnter, onExit) : StateHandler<_,_> = 
+       Async.toHandler 
+            (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
+            (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
+            (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
+
+   member private this.ToHandler(onMessage, onEnter, onExit) : StateHandler<_,_> = 
+        Async.toHandler 
+            (onMessage |> Option.ofObj |> Option.map MessageHandler.fromSyncMessageHandler) 
+            (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromSyncTransitionHandler) 
+            (onExit |> Option.ofObj |> Option.map TransitionHandler.fromSyncTransitionHandler)
+
+
    /// Defines a root state with the specified asynchronous handler functions.
    member this.DefineRootState
       ( name: StateName,
-        initialTransition: InitialTransition<'D>,
+        initialTransition: AsyncIntialTransition<'D>,
         [<Optional>] onMessage: AsyncMessageHandler<'D,'M>,
         [<Optional>] onEnter: AsyncTransitionHandler<'D,'M>,
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) = 
       
-      let handler = 
-         Async.toHandler 
-            (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
-            (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
-            (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
-      this.SetRootState (Root(name, handler, initialTransition))
+      let handler = this.ToHandler(onMessage, onEnter, onExit)
+      this.SetRootState (Root(name, handler, initialTransition.Invoke >> Async.AwaitTask))
+      this
+
+   /// Defines a root state with the specified synchronous handler functions.
+   member this.DefineRootState
+      ( name: StateName,
+        initialTransition: SyncIntialTransition<'D>,
+        [<Optional>] onMessage: SyncMessageHandler<'D,'M>,
+        [<Optional>] onEnter: SyncTransitionHandler<'D,'M>,
+        [<Optional>] onExit: SyncTransitionHandler<'D,'M> ) = 
+      
+      let handler = this.ToHandler(onMessage, onEnter, onExit)
+      this.SetRootState (Root(name, handler, initialTransition.Invoke >> async.Return))
       this
 
    /// Defines an interior (non-root, non-leaf) state with the specified asynchronous handler functions.
    member this.DefineInteriorState
       ( name: StateName,
         parent: StateName,
-        initialTransition: InitialTransition<'D>,
+        initialTransition: AsyncIntialTransition<'D>,
         [<Optional>] onMessage: AsyncMessageHandler<'D,'M>,
         [<Optional>] onEnter: AsyncTransitionHandler<'D,'M>,
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) = 
 
       let build (lazyParent: Lazy<State<_,_>>) = 
-         let handler = 
-            Async.toHandler 
-               (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
-               (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
-               (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
-         lazy (Intermediate (name, lazyParent.Value, handler, initialTransition))
+         let handler = this.ToHandler(onMessage, onEnter, onExit)
+         lazy (Intermediate (name, lazyParent.Value, handler, initialTransition.Invoke >> Async.AwaitTask))
+      this.AddChildState parent (name, build)
+      this
+
+   /// Defines an interior (non-root, non-leaf) state with the specified synchronous handler functions.
+   member this.DefineInteriorState
+      ( name: StateName,
+        parent: StateName,
+        initialTransition: SyncIntialTransition<'D>,
+        [<Optional>] onMessage: SyncMessageHandler<'D,'M>,
+        [<Optional>] onEnter: SyncTransitionHandler<'D,'M>,
+        [<Optional>] onExit: SyncTransitionHandler<'D,'M> ) = 
+
+      let build (lazyParent: Lazy<State<_,_>>) = 
+         let handler = this.ToHandler(onMessage, onEnter, onExit)
+         lazy (Intermediate (name, lazyParent.Value, handler, initialTransition.Invoke >> async.Return))
       this.AddChildState parent (name, build)
       this
 
@@ -239,11 +276,21 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) = 
 
       let build (lazyParent: Lazy<State<_,_>>) = 
-         let handler = 
-            Async.toHandler 
-               (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
-               (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
-               (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
+         let handler = this.ToHandler(onMessage, onEnter, onExit)
+         lazy (Leaf (name, lazyParent.Value, handler))
+      this.AddChildState parent (name, build)
+      this
+
+   /// Defines an leaf state with the specified synchronous handler functions.
+   member this.DefineLeafState
+      ( name: StateName,
+        parent: StateName,
+        [<Optional>] onMessage: SyncMessageHandler<'D,'M>,
+        [<Optional>] onEnter: SyncTransitionHandler<'D,'M>,
+        [<Optional>] onExit: SyncTransitionHandler<'D,'M> ) = 
+
+      let build (lazyParent: Lazy<State<_,_>>) = 
+         let handler = this.ToHandler(onMessage, onEnter, onExit)
          lazy (Leaf (name, lazyParent.Value, handler))
       this.AddChildState parent (name, build)
       this
