@@ -6,9 +6,9 @@ open System.Runtime.InteropServices
 open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open Strat.StateMachine
+open Strat.StateMachine.Definition
 
-
-// Similar to MessageContext, defined with interop-friendly types.
+/// Similar to MessageContext, defined with interop-friendly types.
 type IMessageContext<'D,'M> = 
    /// The message that is being processed.
    abstract Message: 'M
@@ -45,6 +45,12 @@ type IMessageContext<'D,'M> =
       [<Optional>] reason: string *
       [<Optional>] code: int -> MessageResult<'D,'M>
 
+/// Similar to StateHandler, defined with interop-friendly types.
+and IStateHandler<'D,'M> = 
+   abstract OnMessage: AsyncMessageHandler<'D,'M>
+   abstract OnEnter: AsyncTransitionHandler<'D,'M>
+   abstract OnExit: AsyncTransitionHandler<'D,'M>
+
 /// Similar to MessageHandler, defined with interop-friendly types
 and AsyncMessageHandler<'D,'M> = Func<IMessageContext<'D,'M>, Task<MessageResult<'D,'M>>>
    
@@ -73,6 +79,7 @@ module internal Interop =
       { OnMessage = unhandledMessageAsync; 
         OnEnter = emptyTransHandlerAsync; 
         OnExit = emptyTransHandlerAsync }
+
 
    /// Conversions from interop-friendly types
    module TransitionHandler =   
@@ -114,41 +121,28 @@ module internal Interop =
       let inline fromSyncMessageHandler (messageHandler: SyncMessageHandler<_,_>) : MessageHandler<_,_> = 
          wrap >> messageHandler.Invoke >> async.Return
       
+   /// Creates a StateHandler from async handler functions
+   let stateHandlerFromAsync onMessage onEnter onExit : StateHandler<_,_> = 
+       Async.toHandler 
+            (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
+            (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
+            (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
 
-   // Function that creates a child state, given it's parent state
-   type internal StateCreator<'D,'M> = State<'D,'M> -> State<'D,'M>
-   type internal ChildBuilder<'D,'M> = StateName * StateCreator<'D,'M>
+   /// Creates a StateHandler from synchronous handler functions
+   let stateHandlerFromSync onMessage onEnter onExit : StateHandler<_,_> = 
+        Async.toHandler 
+            (onMessage |> Option.ofObj |> Option.map MessageHandler.fromSyncMessageHandler) 
+            (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromSyncTransitionHandler) 
+            (onExit |> Option.ofObj |> Option.map TransitionHandler.fromSyncTransitionHandler)   
+
+   /// Creates a StateHandler from synchronous handler functions
+   let stateHandlerFromInteropHandler (stateHandler: IStateHandler<_,_>) : StateHandler<_,_> =
+      { OnMessage = stateHandler.OnMessage |> MessageHandler.fromAsyncMessageHandler;
+        OnEnter = stateHandler.OnEnter |> TransitionHandler.fromAsyncTransitionHandler;
+        OnExit = stateHandler.OnExit |> TransitionHandler.fromAsyncTransitionHandler; } 
 
 
 open Interop
-open Strat.StateMachine.Definition
-
-/// Base class for builders that is used to define a 'flat' set of states for a state machine, without introducing 
-/// hierarchical relationships between the states.
-[<AbstractClass>]
-type StateBuilderBase<'D,'M>() = 
-   let stateNames = HashSet<StateName>()
-   let stateBuilders = ResizeArray<StateName*StateCreator<'D,'M>>()
-   member internal this.AddState name creator = 
-      if not (stateNames.Add name) then 
-         raise <| invalidArg "name" (sprintf "A state with name %A has already been defined" name)
-      stateBuilders.Add (name, creator) 
-
-   /// Returns a new state tree containing all the states that have been defined with this builder. The tree is flat,
-   /// consisting of a default root state, with all the states defined by this builder as children.
-   member this.ToStateTree() : StateTree<'D,'M> =
-      // Just chose the first state as the initial state
-      let initTransition = fun ctx -> async.Return (ctx, (stateBuilders |> Seq.head |> fst))
-      let rootState = State.Root (StateName "RootState", emptyHandlerAsync, initTransition)
-      let initStateTree = { Root = rootState; States = Map.empty }
-
-      stateBuilders
-      |> Seq.fold (fun stateTree (name, builder) -> 
-         let newState = builder rootState
-         let newStates = stateTree.States |> Map.add name (lazy newState) 
-         { stateTree with States = newStates }
-      ) initStateTree
-
 
 /// <summary>
 /// A builder that is used to define a 'flat' set of states for a state machine, without introducing hierarchical 
@@ -164,14 +158,8 @@ type StateBuilder<'D,'M>() =
         [<Optional>] onEnter: AsyncTransitionHandler<'D,'M>,
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) =
 
-      let build rootState = 
-         let handler = 
-            Async.toHandler 
-               (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
-               (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
-               (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
-         State.Leaf (name, rootState, handler)
-
+      let build (lazyRoot: Lazy<State<_,_>>) = 
+         lazy (Leaf (name, lazyRoot.Value, stateHandlerFromAsync onMessage onEnter onExit))
       this.AddState name build
       this
 
@@ -182,36 +170,29 @@ type StateBuilder<'D,'M>() =
         [<Optional>] onEnter: SyncTransitionHandler<'D,'M>,
         [<Optional>] onExit: SyncTransitionHandler<'D,'M> ) =
 
-      let build rootState = 
-         let handler = 
-            Async.toHandler 
-               (onMessage |> Option.ofObj |> Option.map MessageHandler.fromSyncMessageHandler) 
-               (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromSyncTransitionHandler) 
-               (onExit |> Option.ofObj |> Option.map TransitionHandler.fromSyncTransitionHandler)
-         State.Leaf (name, rootState, handler)
-
+      let build (lazyRoot: Lazy<State<_,_>>) =
+         lazy (Leaf (name, lazyRoot.Value, stateHandlerFromSync onMessage onEnter onExit))
       this.AddState name build
       this
 
+   /// Defines a state with a handler that will be created by the specified function, the first time the state is 
+   /// entered.
+   member this.DefineState
+      ( name: StateName,
+        createHandler: unit -> IStateHandler<'D,'M> ) = 
+      
+      let build (lazyRoot: Lazy<State<_,_>>) = 
+         lazy (
+            let interopHandler = createHandler()
+            Leaf (name, lazyRoot.Value, stateHandlerFromInteropHandler interopHandler))
+      this.AddState name build
+      this
 
 /// <summary>
 /// A builder that can be used to define a hierarchical set of states for a state machine.
 /// </summary>
 type StateTreeBuilder<'D, 'M>() =
    inherit StateTreeBuilderBase<'D,'M>()
-
-   member private this.ToHandler(onMessage, onEnter, onExit) : StateHandler<_,_> = 
-       Async.toHandler 
-            (onMessage |> Option.ofObj |> Option.map MessageHandler.fromAsyncMessageHandler) 
-            (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler) 
-            (onExit |> Option.ofObj |> Option.map TransitionHandler.fromAsyncTransitionHandler)
-
-   member private this.ToHandler(onMessage, onEnter, onExit) : StateHandler<_,_> = 
-        Async.toHandler 
-            (onMessage |> Option.ofObj |> Option.map MessageHandler.fromSyncMessageHandler) 
-            (onEnter |> Option.ofObj |> Option.map TransitionHandler.fromSyncTransitionHandler) 
-            (onExit |> Option.ofObj |> Option.map TransitionHandler.fromSyncTransitionHandler)
-
 
    /// Defines a root state with the specified asynchronous handler functions.
    member this.DefineRootState
@@ -221,7 +202,7 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onEnter: AsyncTransitionHandler<'D,'M>,
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) = 
       
-      let handler = this.ToHandler(onMessage, onEnter, onExit)
+      let handler = stateHandlerFromAsync onMessage onEnter onExit
       this.SetRootState (Root(name, handler, initialTransition.Invoke >> Async.AwaitTask))
       this
 
@@ -233,7 +214,7 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onEnter: SyncTransitionHandler<'D,'M>,
         [<Optional>] onExit: SyncTransitionHandler<'D,'M> ) = 
       
-      let handler = this.ToHandler(onMessage, onEnter, onExit)
+      let handler = stateHandlerFromSync onMessage onEnter onExit
       this.SetRootState (Root(name, handler, initialTransition.Invoke >> async.Return))
       this
 
@@ -247,7 +228,7 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) = 
 
       let build (lazyParent: Lazy<State<_,_>>) = 
-         let handler = this.ToHandler(onMessage, onEnter, onExit)
+         let handler = stateHandlerFromAsync onMessage onEnter onExit
          lazy (Intermediate (name, lazyParent.Value, handler, initialTransition.Invoke >> Async.AwaitTask))
       this.AddChildState parent (name, build)
       this
@@ -262,8 +243,24 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onExit: SyncTransitionHandler<'D,'M> ) = 
 
       let build (lazyParent: Lazy<State<_,_>>) = 
-         let handler = this.ToHandler(onMessage, onEnter, onExit)
+         let handler = stateHandlerFromSync onMessage onEnter onExit
          lazy (Intermediate (name, lazyParent.Value, handler, initialTransition.Invoke >> async.Return))
+      this.AddChildState parent (name, build)
+      this
+
+   /// Defines an interior (non-root, non-leaf) state with a handler that will be created by the specified function, 
+   /// the first time the state is entered.
+   member this.DefineInteriorState
+      ( name: StateName,
+        parent: StateName,
+        initialTransition: AsyncIntialTransition<'D>,
+        createHandler: unit -> IStateHandler<'D,'M> ) = 
+      
+      let build (lazyParent: Lazy<State<_,_>>) = 
+         lazy (
+            let interopHandler = createHandler()
+            let handler = stateHandlerFromInteropHandler interopHandler
+            Intermediate (name, lazyParent.Value, handler, initialTransition.Invoke >> Async.AwaitTask))
       this.AddChildState parent (name, build)
       this
 
@@ -276,7 +273,7 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onExit: AsyncTransitionHandler<'D,'M> ) = 
 
       let build (lazyParent: Lazy<State<_,_>>) = 
-         let handler = this.ToHandler(onMessage, onEnter, onExit)
+         let handler = stateHandlerFromAsync onMessage onEnter onExit
          lazy (Leaf (name, lazyParent.Value, handler))
       this.AddChildState parent (name, build)
       this
@@ -290,7 +287,21 @@ type StateTreeBuilder<'D, 'M>() =
         [<Optional>] onExit: SyncTransitionHandler<'D,'M> ) = 
 
       let build (lazyParent: Lazy<State<_,_>>) = 
-         let handler = this.ToHandler(onMessage, onEnter, onExit)
+         let handler = stateHandlerFromSync onMessage onEnter onExit
          lazy (Leaf (name, lazyParent.Value, handler))
+      this.AddChildState parent (name, build)
+      this
+
+   /// Defines a leaf state with a handler that will be created by the specified function, the first time the state is 
+   /// entered.
+   member this.DefineLeafState
+      ( name: StateName,
+        parent: StateName,
+        createHandler: unit -> IStateHandler<'D,'M> ) = 
+      
+      let build (lazyParent: Lazy<State<_,_>>) = 
+         lazy (
+            let interopHandler = createHandler()
+            Leaf (name, lazyParent.Value, stateHandlerFromInteropHandler interopHandler))
       this.AddChildState parent (name, build)
       this

@@ -320,6 +320,9 @@ type StateTreeBuilderBase<'D, 'M>() =
 /// A builder that is used to define a 'flat' set of states for a state machine, without introducing hierarchical 
 /// relationships between the states.
 /// </summary>
+/// <remarks>
+///  This type is intended primarily for use with F#.
+/// <remarks>
 type StateBuilder<'D,'M>() = 
    inherit StateBuilderBase<'D,'M>()
 
@@ -344,6 +347,19 @@ type StateBuilder<'D,'M>() =
 
       let build (rootState: Lazy<State<_,_>>) = 
          let handler = Sync.toAsyncHandler onMessage onEnter onExit
+         lazy (Leaf (name, rootState.Value, handler))
+
+      this.AddState name build
+      this
+
+   /// Defines a state with a handler that will be created by the specified function, the first time the state is 
+   /// entered.
+   member this.DefineState
+      ( name: StateName,
+        createHandler: unit -> StateHandler<'D,'M> ) = 
+
+      let build (rootState: Lazy<State<_,_>>) = 
+         let handler = createHandler()
          lazy (Leaf (name, rootState.Value, handler))
 
       this.AddState name build
