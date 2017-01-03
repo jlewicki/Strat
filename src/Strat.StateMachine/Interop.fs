@@ -47,9 +47,9 @@ type IMessageContext<'D,'M> =
 
 /// Similar to StateHandler, defined with interop-friendly types.
 and IStateHandler<'D,'M> = 
-   abstract OnMessage: AsyncMessageHandler<'D,'M>
-   abstract OnEnter: AsyncTransitionHandler<'D,'M>
-   abstract OnExit: AsyncTransitionHandler<'D,'M>
+   abstract OnMessage: context: IMessageContext<'D,'M> -> Task<MessageResult<'D,'M>>
+   abstract OnEnter: context: TransitionContext<'D,'M> -> Task<'D>
+   abstract OnExit: context: TransitionContext<'D,'M> -> Task<'D>
 
 /// Similar to MessageHandler, defined with interop-friendly types
 and AsyncMessageHandler<'D,'M> = Func<IMessageContext<'D,'M>, Task<MessageResult<'D,'M>>>
@@ -137,9 +137,9 @@ module internal Interop =
 
    /// Creates a StateHandler from synchronous handler functions
    let stateHandlerFromInteropHandler (stateHandler: IStateHandler<_,_>) : StateHandler<_,_> =
-      { OnMessage = stateHandler.OnMessage |> MessageHandler.fromAsyncMessageHandler;
-        OnEnter = stateHandler.OnEnter |> TransitionHandler.fromAsyncTransitionHandler;
-        OnExit = stateHandler.OnExit |> TransitionHandler.fromAsyncTransitionHandler; } 
+      { OnMessage = Func<_,_> (stateHandler.OnMessage) |> MessageHandler.fromAsyncMessageHandler;
+        OnEnter = Func<_,_> (stateHandler.OnEnter) |> TransitionHandler.fromAsyncTransitionHandler;
+        OnExit = Func<_,_> (stateHandler.OnExit) |> TransitionHandler.fromAsyncTransitionHandler; } 
 
 
 open Interop
@@ -179,11 +179,11 @@ type StateBuilder<'D,'M>() =
    /// entered.
    member this.DefineState
       ( name: StateName,
-        createHandler: unit -> IStateHandler<'D,'M> ) = 
+        createHandler: Func<IStateHandler<'D,'M>> ) = 
       
       let build (lazyRoot: Lazy<State<_,_>>) = 
          lazy (
-            let interopHandler = createHandler()
+            let interopHandler = createHandler.Invoke()
             Leaf (name, lazyRoot.Value, stateHandlerFromInteropHandler interopHandler))
       this.AddState name build
       this
@@ -297,11 +297,11 @@ type StateTreeBuilder<'D, 'M>() =
    member this.DefineLeafState
       ( name: StateName,
         parent: StateName,
-        createHandler: unit -> IStateHandler<'D,'M> ) = 
+        createHandler: Func<IStateHandler<'D,'M>> ) = 
       
       let build (lazyParent: Lazy<State<_,_>>) = 
          lazy (
-            let interopHandler = createHandler()
+            let interopHandler = createHandler.Invoke()
             Leaf (name, lazyParent.Value, stateHandlerFromInteropHandler interopHandler))
       this.AddChildState parent (name, build)
       this

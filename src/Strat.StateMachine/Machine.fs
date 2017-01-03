@@ -145,15 +145,15 @@ module StateMachine =
             let handlers = handlers state
             let! msgResult = handlers.OnMessage msgCtx
             match msgResult with 
-            | Transition(stateName, nextData, optAction) -> 
+            | Transition (stateName, nextData, optAction) -> 
                let action = defaultArg optAction emptyTransAction
                return msgResult, State(findState stateName machineCtx.StateTree), nextData, action
-            | SelfTransition(nextData, optAction) -> 
+            | SelfTransition (nextData, optAction) -> 
                let action = defaultArg optAction emptyTransAction
                return msgResult, State(state), nextData, action
-            | InternalTransition(nextContext) -> 
-               return msgResult, Internal, nextContext, emptyTransAction
-            | MessageResult.Stop(optReason) ->
+            | InternalTransition nextData -> 
+               return msgResult, Internal, nextData, emptyTransAction
+            | MessageResult.Stop optReason ->
                let terminalState = Terminal(machineCtx.StateTree.Root, state.Name, optReason)
                return msgResult, State(terminalState), msgCtx.Data, emptyTransAction
             | Unhandled ->
