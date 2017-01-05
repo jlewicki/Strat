@@ -259,9 +259,13 @@ type StateBuilderBase<'D,'M>() =
    /// Returns a new state tree containing all the states that have been defined with this builder. The tree is flat,
    /// consisting of a default root state, with all the states defined by this builder as children.
    member this.ToStateTree() : StateTree<'D,'M> =
+
       // Just chose the first state as the initial state
       let initTransition = fun ctx -> async.Return (ctx, (stateBuilders |> Seq.head |> fst))
-      let rootState = State.Root (StateName "RootState", Async.emptyHandler, initTransition)
+      // Beware: the type annotation is required here, otherwise equality checks won't work as expected.
+      // That is, without the annotation, Object.Equals(rootState, rootState) will return false!
+      let rootState : State<'D,'M> = Root (StateName "RootState", Async.emptyHandler, initTransition)
+      let rootStateUnspecialized = Root (StateName "RootState", Async.emptyHandler, initTransition)
       let initStateTree = { Root = rootState; States = Map.empty }
       let lazyRoot = lazy rootState
 

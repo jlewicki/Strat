@@ -48,7 +48,7 @@ module StateMachine =
    let private findState stateName (stateTree: StateTree<'D,'M>) =
       match stateTree.States |> Map.tryFind stateName with
       | Some(state) -> state.Value
-      | None -> invalidOp <| sprintf "Unable to find a state with name %A in the state tree." name
+      | None -> invalidOp <| sprintf "Unable to find a state with name %A in the state tree." stateName
 
 
    /// Throws an exception if parent is not the parent state of child. 
@@ -65,7 +65,13 @@ module StateMachine =
    let private ensureRoot state (rootState: State<'D,'M>) = 
       let stateRoot = selfAndAncestors state |> Seq.last
       if not (equals stateRoot rootState) then 
-         invalidOp <| sprintf "State %A has a different root state that than expected root %A" (name state) (name rootState)
+         let msg = 
+            sprintf 
+               "State %A has a different root state (%A) than the expected root (%A)" 
+               (name state)
+               (name stateRoot)
+               (name rootState)
+         invalidOp <| msg
 
 
    /// Repeatedly 'evolves' a state value by threading it through calls to f, which returns the evolved state, and a
