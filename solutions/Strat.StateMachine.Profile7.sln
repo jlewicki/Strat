@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Strat.StateMachine.Profile7", "..\src\Strat.StateMachine\Strat.StateMachine.Profile7.fsproj", "{045B1F33-3B03-4759-9E73-F50423EA352F}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Strat.StateMachine.Profile7", "..\src\Strat.StateMachine\PCL\Strat.StateMachine.Profile7.fsproj", "{045B1F33-3B03-4759-9E73-F50423EA352F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
