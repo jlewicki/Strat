@@ -14,7 +14,7 @@
     <TargetProfile>netcore</TargetProfile>
     <TargetFSharpCoreVersion>3.7.4.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Name>Strat.UI.Portable7</Name>
+    <Name>Strat.UI.Profile7</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -43,9 +43,15 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\AssemblyInfo.fs" />
-    <Compile Include="..\IObservableProperty.fs"/>
-    <Compile Include="..\ReadOnlyProperty.fs"/>
+    <Compile Include="..\AssemblyInfo.fs">
+      <Link>AssemblyInfo.fs</Link>
+    </Compile>
+    <Compile Include="..\IObservableProperty.fs">
+      <Link>IObservableProperty.fs</Link>
+    </Compile>
+    <Compile Include="..\ReadOnlyProperty.fs">
+      <Link>ReadOnlyProperty.fs</Link>
+    </Compile>
     <None Include="project.json" />
   </ItemGroup>
   <PropertyGroup>
