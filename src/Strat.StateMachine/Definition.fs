@@ -1,5 +1,6 @@
 ﻿namespace Strat.StateMachine.Definition
 
+open System
 open System.Collections.Generic
 open Strat.StateMachine
 
@@ -88,7 +89,7 @@ module Async =
         OnExit = emptyTransitionHandler }
 
    /// Constructs a StateHandler from the specified individual handler functions.
-   let internal toHandler
+   let toHandler
       ( onMessage: option<MessageHandler<'D,'M>> ) 
       ( onEnter: option<TransitionHandler<'D,'M>> ) 
       ( onExit: option<TransitionHandler<'D,'M>> ) : StateHandler<'D,'M> = 
@@ -258,14 +259,15 @@ type StateBuilderBase<'D,'M>() =
 
    /// Returns a new state tree containing all the states that have been defined with this builder. The tree is flat,
    /// consisting of a default root state, with all the states defined by this builder as children.
-   member this.ToStateTree() : StateTree<'D,'M> =
+    member this.ToStateTree
+      ( ?initialTransition: InitialTransition<'D>,
+        ?onMessage: MessageHandler<'D,'M> ) : StateTree<'D,'M> =
 
-      // Just chose the first state as the initial state
-      let initTransition = fun ctx -> async.Return (ctx, (stateBuilders |> Seq.head |> fst))
-      // Beware: the type annotation is required here, otherwise equality checks won't work as expected.
-      // That is, without the annotation, Object.Equals(rootState, rootState) will return false!
-      let rootState : State<'D,'M> = Root (StateName "RootState", Async.emptyHandler, initTransition)
-      let rootStateUnspecialized = Root (StateName "RootState", Async.emptyHandler, initTransition)
+      // Default initial transition just chooses the first state that was defined as the initial state
+      let defaultInitTrans ctx = async.Return (ctx, (stateBuilders |> Seq.head |> fst))
+      let _initialTransition = defaultArg initialTransition defaultInitTrans
+
+      let rootState = (Root(StateName "RootState", (Async.toHandler onMessage None None), _initialTransition))
       let initStateTree = { Root = rootState; States = Map.empty }
       let lazyRoot = lazy rootState
 
@@ -307,15 +309,20 @@ type StateTreeBuilderBase<'D, 'M>() =
          | true, childBuilders -> 
             childBuilders 
             |> Seq.fold (fun stateTree (childName, builder) -> 
-               let lazyParentState = stateTree.States |> Map.find parentStateName 
-               let lazyChildState = builder lazyParentState
-               let newStates = stateTree.States |> Map.add childName lazyChildState 
-               let stateTree = { stateTree with States = newStates }
-               buildChildStates childName stateTree ) stateTree 
+               match stateTree.States |> Map.tryFind parentStateName with
+               | Some lazyParentState ->
+                  let lazyChildState = builder lazyParentState
+                  let newStates = stateTree.States |> Map.add childName lazyChildState 
+                  let stateTree = { stateTree with States = newStates }
+                  buildChildStates childName stateTree
+               | None -> 
+                  invalidOp <| sprintf "Unable to find parent state %A for state %A" parentStateName childName
+            ) stateTree 
          | false, _ -> 
             stateTree
       
-      let initStateTree = { Root = rootState.Value; States = Map.empty }         
+      let lazyRoot = lazy rootState.Value
+      let initStateTree = { Root = rootState.Value; States = Map.empty |> Map.add rootState.Value.Name lazyRoot }         
       buildChildStates rootState.Value.Name initStateTree
 
 
@@ -360,10 +367,10 @@ type StateBuilder<'D,'M>() =
    /// entered.
    member this.DefineState
       ( name: StateName,
-        createHandler: unit -> StateHandler<'D,'M> ) = 
+        createHandler: Func<StateHandler<'D,'M>> ) = 
 
       let build (rootState: Lazy<State<_,_>>) = 
-         let handler = createHandler()
+         let handler = createHandler.Invoke()
          lazy (Leaf (name, rootState.Value, handler))
 
       this.AddState name build
@@ -429,7 +436,7 @@ type StateTreeBuilder<'D, 'M>() =
       this.AddChildState parent (name, build)
       this
 
-   /// Defines an leaf state with the specified asynchronous handler functions.
+   /// Defines a leaf state with the specified asynchronous handler functions.
    member this.DefineLeafState
       ( name: StateName,
         parent: StateName,
@@ -442,7 +449,7 @@ type StateTreeBuilder<'D, 'M>() =
       this.AddChildState parent (name, build)
       this
 
-   /// Defines an leaf state with the specified synchronous handler functions.
+   /// Defines a leaf state with the specified synchronous handler functions.
    member this.DefineLeafState
       ( name: StateName,
         parent: StateName,
@@ -452,5 +459,18 @@ type StateTreeBuilder<'D, 'M>() =
 
       let build (lazyParent: Lazy<State<_,_>>) = 
         lazy (Leaf (name, lazyParent.Value, (Sync.toAsyncHandler onMessage onEnter onExit)))
+      this.AddChildState parent (name, build)
+      this
+
+   /// Defines a leaf state with a handler that will be created by the specified function, the first time the state is 
+   /// entered.
+   member this.DefineLeafState
+      ( name: StateName,
+        parent: StateName,
+        createHandler: Func<StateHandler<'D,'M>> ) = 
+
+      let build (lazyParent: Lazy<State<_,_>>) = 
+         let handler = createHandler.Invoke()
+         lazy (Leaf (name, lazyParent.Value, handler))
       this.AddChildState parent (name, build)
       this

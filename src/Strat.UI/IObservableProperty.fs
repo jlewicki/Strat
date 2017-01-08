@@ -1,4 +1,4 @@
-namespace Strat.Reactive
+namespace Strat.UI
 open System
 open System.ComponentModel
 
