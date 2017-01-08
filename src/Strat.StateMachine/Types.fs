@@ -155,7 +155,7 @@ type StateTree<'D,'M> = {
    /// The root state in the state tree.
    Root: State<'D,'M> 
    /// Map of all states in the tree, keyed by state name.
-   States: Map<StateName, State<'D,'M>>
+   States: Map<StateName, Lazy<State<'D,'M>>>
 }
 
 

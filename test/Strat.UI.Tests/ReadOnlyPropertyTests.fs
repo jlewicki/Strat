@@ -1,4 +1,4 @@
-namespace Strat.Reactive.Tests
+namespace Strat.UI.Tests
 
 open System
 open System.ComponentModel

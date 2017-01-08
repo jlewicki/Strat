@@ -79,7 +79,7 @@ module TransitionsSm =
          let ctx = transCtx.TargetData
          { ctx with B1ToB2TransitionTick = Some(ctx.Tick); Tick = ctx.Tick + 1 }
       match msgCtx.Message with
-      | M1 -> msgCtx.GoTo(stateB2, action = Sync.toAsyncTransitionHandler b1Tob2TransitionAction)
+      | M1 -> msgCtx.GoTo(stateB2, action = (b1Tob2TransitionAction >> async.Return))
       | _ -> MessageResult.Unhandled
 
    let sleepOnExitHandler  (msgCtx:MessageContext) = 

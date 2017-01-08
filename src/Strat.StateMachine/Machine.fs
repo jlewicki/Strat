@@ -47,8 +47,8 @@ module StateMachine =
    /// Returns the state with the specified name, or throws an exception.
    let private findState stateName (stateTree: StateTree<'D,'M>) =
       match stateTree.States |> Map.tryFind stateName with
-      | Some(state) -> state
-      | None -> invalidOp <| sprintf "Unable to find a state with name %A in the state tree." name
+      | Some(state) -> state.Value
+      | None -> invalidOp <| sprintf "Unable to find a state with name %A in the state tree." stateName
 
 
    /// Throws an exception if parent is not the parent state of child. 
@@ -65,7 +65,13 @@ module StateMachine =
    let private ensureRoot state (rootState: State<'D,'M>) = 
       let stateRoot = selfAndAncestors state |> Seq.last
       if not (equals stateRoot rootState) then 
-         invalidOp <| sprintf "State %A has a different root state that than expected root %A" (name state) (name rootState)
+         let msg = 
+            sprintf 
+               "State %A has a different root state (%A) than the expected root (%A)" 
+               (name state)
+               (name stateRoot)
+               (name rootState)
+         invalidOp <| msg
 
 
    /// Repeatedly 'evolves' a state value by threading it through calls to f, which returns the evolved state, and a
@@ -145,15 +151,15 @@ module StateMachine =
             let handlers = handlers state
             let! msgResult = handlers.OnMessage msgCtx
             match msgResult with 
-            | Transition(stateName, nextData, optAction) -> 
+            | Transition (stateName, nextData, optAction) -> 
                let action = defaultArg optAction emptyTransAction
                return msgResult, State(findState stateName machineCtx.StateTree), nextData, action
-            | SelfTransition(nextData, optAction) -> 
+            | SelfTransition (nextData, optAction) -> 
                let action = defaultArg optAction emptyTransAction
                return msgResult, State(state), nextData, action
-            | InternalTransition(nextContext) -> 
-               return msgResult, Internal, nextContext, emptyTransAction
-            | MessageResult.Stop(optReason) ->
+            | InternalTransition nextData -> 
+               return msgResult, Internal, nextData, emptyTransAction
+            | MessageResult.Stop optReason ->
                let terminalState = Terminal(machineCtx.StateTree.Root, state.Name, optReason)
                return msgResult, State(terminalState), msgCtx.Data, emptyTransAction
             | Unhandled ->
