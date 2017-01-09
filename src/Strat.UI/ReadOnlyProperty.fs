@@ -83,6 +83,10 @@ module ObservableProperty =
    let create initValue values : IObservableProperty<_>= 
       upcast (new ReadOnlyProperty<_>(initValue, values))
 
+   /// Creates a new ObservableProperty instance, using the default value for 'T as the intial value.
+   let createWithDefault values : IObservableProperty<'T>= 
+      upcast (new ReadOnlyProperty<_>(Unchecked.defaultof<'T>, values))
+
    /// Creates a new ObservableProperty instance that always yields that specified value.
    let always initValue : IObservableProperty<_> =
       upcast (new ReadOnlyProperty<_>(initValue, Observable.Never()))

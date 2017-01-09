@@ -156,6 +156,14 @@ module Tuple2 =
       elif i = 1 then item1
       else raise <| invalidArg "i" "i must be 0 or 1"
 
+   /// Returns a new tuple by applying specified function to the first element in the tuple
+   let inline mapFst f (item0, item1) = 
+      (f item0), item1   
+
+   /// Returns a new tuple by applying specified function to the second element in the tuple
+   let inline mapSnd f (item0, item1) = 
+      item0, (f item1)
+
    /// Returns a new tuple by applying the function to the n'th item in the specified tuple.  Note that i is 0-based.
    let mapNth i f (item0, item1) = 
       if i = 0 then (f item0, item1)
