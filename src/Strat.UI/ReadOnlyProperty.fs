@@ -74,3 +74,15 @@ type ReadOnlyProperty<'T>
         [<CLIEvent>] 
         member this.PropertyChanged =
             this.PropertyChanged
+
+
+/// Functions for creating and composing ObservableProperty instances.
+module ObservableProperty = 
+   
+   /// Creates a new ObservableProperty instance.
+   let create initValue values : IObservableProperty<_>= 
+      upcast (new ReadOnlyProperty<_>(initValue, values))
+
+   /// Creates a new ObservableProperty instance that always yields that specified value.
+   let always initValue : IObservableProperty<_> =
+      upcast (new ReadOnlyProperty<_>(initValue, Observable.Never()))
