@@ -113,6 +113,40 @@ module TransitionTests =
 
 
    [<Fact>]
+   let Self_Transition_From_ParentState_Should_Reenter_The_CurrentState() = 
+      let smCtx = TransitionsSm.initializeContext stateC1 initData 
+
+      // M1 is handled by C, which does a GoToSelf() transition, which should re-enter current state C1 .
+      let processed = StateMachine.processMessage M1 smCtx |> Async.RunSynchronously
+      
+      match processed with
+      | HandledMessage(handled) ->
+         let smCtx = handled.NextContext
+         Assert.Equal(stateC1, smCtx.State.Name)
+         Assert.Equal(1, handled.ExitedStates.Length)
+         Assert.Equal(stateC1, handled.ExitedStates.Head |> State.name)
+         Assert.Equal(1, handled.EnteredStates.Length)
+         Assert.Equal(stateC1, handled.EnteredStates.Head |> State.name)
+      | _ -> Assert.False(true)
+
+   [<Fact>]
+   let Self_Transition_Should_Reenter_The_CurrentState() = 
+      let smCtx = TransitionsSm.initializeContext stateC2 initData 
+
+      // M1 is handled by C2, which does a GoToSelf() transition, which should re-enter current state C2.
+      let processed = StateMachine.processMessage M1 smCtx |> Async.RunSynchronously
+      
+      match processed with
+      | HandledMessage(handled) ->
+         let smCtx = handled.NextContext
+         Assert.Equal(stateC2, smCtx.State.Name)
+         Assert.Equal(1, handled.ExitedStates.Length)
+         Assert.Equal(stateC2, handled.ExitedStates.Head |> State.name)
+         Assert.Equal(1, handled.EnteredStates.Length)
+         Assert.Equal(stateC2, handled.EnteredStates.Head |> State.name)
+      | _ -> Assert.False(true)
+
+   [<Fact>]
    let Stopping_Should_Transition_To_Terminal_State() = 
       let smCtx = TransitionsSm.initializeContext stateA2A initData 
 

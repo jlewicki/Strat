@@ -88,7 +88,8 @@ with
 
    /// Returns a message result indicating that an self-transition should occur, optionally updating the state data. A 
    /// self-transition means that the current state is exited and re-entered, calling the handler functions for the 
-   /// state.
+   /// state. By current, we mean the current state of the state machine, not necessarily the state (which could be an
+   /// ancestor state of the current state) that calls this method.
    member this.GoToSelf(?nextData:'D, ?action: TransitionHandler<'D,'M>) =
       let _nextData = defaultArg nextData this.Data
       MessageResult.SelfTransition(_nextData, action)

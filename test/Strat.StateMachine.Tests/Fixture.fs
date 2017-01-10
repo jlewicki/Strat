@@ -35,6 +35,9 @@ module TransitionsSm =
    let stateB = StateName "B"
    let stateB1 = StateName "B1"
    let stateB2 = StateName "B2"
+   let stateC = StateName "C"
+   let stateC1 = StateName "C1"
+   let stateC2 = StateName "C2"
    let stateErrorOnEnter = StateName "ErrorOnEnter"
    let stateSleepOnEnter = StateName "SleepOnEnter"
    let stateSleepOnExit = StateName "SleepOnExit"
@@ -87,6 +90,16 @@ module TransitionsSm =
       | M1 -> msgCtx.GoToSelf()  // This will exit/reenter
       | _ -> MessageResult.Unhandled
 
+   let cHandler (msgCtx:MessageContext) = 
+      match msgCtx.Message with
+      | M1 -> msgCtx.GoToSelf() 
+      | _ -> MessageResult.Unhandled
+
+   let c2Handler (msgCtx:MessageContext) = 
+      match msgCtx.Message with
+      | M1 -> msgCtx.GoToSelf()
+      | _ -> MessageResult.Unhandled
+
    // Helper module for wiring in common OnEnter/OnExit handlers
    module Handle  = 
       let withDefaults (syncMsgHandler: Sync.MessageHandler<_,_>) : Sync.StateHandler<_,_> = 
@@ -107,7 +120,10 @@ module TransitionsSm =
               syncLeaf stateB2 Sync.emptyHandler
               syncLeaf stateErrorOnEnter Handle.emptyHandler
               syncLeaf stateSleepOnEnter Handle.emptyHandler
-              syncLeaf stateSleepOnExit (Handle.withDefaults sleepOnExitHandler) ] ]
+              syncLeaf stateSleepOnExit (Handle.withDefaults sleepOnExitHandler) ]
+           syncInterior stateC (Start.With stateC2) (Handle.withDefaults cHandler) 
+            [ syncLeaf stateC1 Sync.emptyHandler
+              syncLeaf stateC2 (Handle.withDefaults c2Handler) ] ]
 
    let initData : Data = {
       Tick = 1

@@ -146,6 +146,7 @@ module StateMachine =
       (message: 'M)
       (machineCtx:StateMachineContext<'D,'M>) : Async<MessageResult<'D,'M> * TransitionTarget<'D,'M> * 'D * TransitionHandler<'D,'M>> =
       
+      let originalState = machineCtx.State
       let rec handleMessageAcc msgCtx state = 
          async {
             let handlers = handlers state
@@ -156,7 +157,10 @@ module StateMachine =
                return msgResult, State(findState stateName machineCtx.StateTree), nextData, action
             | SelfTransition (nextData, optAction) -> 
                let action = defaultArg optAction emptyTransAction
-               return msgResult, State(state), nextData, action
+               // Note that for a self-transition, we transition to the current state for the state machine, not the 
+               // handling state. Perhaps that is slightly arbitrary, but I believe that is the most semantically 
+               // consistent behavior.
+               return msgResult, State(originalState), nextData, action
             | InternalTransition nextData -> 
                return msgResult, Internal, nextData, emptyTransAction
             | MessageResult.Stop optReason ->
