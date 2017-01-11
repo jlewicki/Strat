@@ -116,6 +116,10 @@ module Pervasives =
    /// Returns a value indicating if the specified value is an odd number.
    let inline odd x = x % 2 = 1
 
+   /// Returns a value indicating if the specified value is null.
+   // This will be in the next release of F# (part of VS 2017)
+   let inline isNotNull o = not (isNull o)
+
    /// Returns Even if the specified value is an even number, otherwise Odd.
    let (|Even|Odd|) value = 
       if even value then Even
