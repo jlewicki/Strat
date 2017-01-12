@@ -1,4 +1,4 @@
-﻿namespace Strat.Core.Lenses
+﻿namespace Strat.Lenses
 
 open System
 open System.Threading

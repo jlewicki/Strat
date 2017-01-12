@@ -46,7 +46,10 @@
     <Compile Include="..\Pervasives.fs">
       <Link>Pervasives.fs</Link>
     </Compile>
-	<Compile Include="..\Lenses\Lens.fsi" />
+    <Compile Include="..\Collections\CollectionExtensions.fs" />
+    <Compile Include="..\Collections\RandomAccessList.fsi" />
+    <Compile Include="..\Collections\RandomAccessList.fs" />
+	 <Compile Include="..\Lenses\Lens.fsi" />
     <Compile Include="..\Lenses\Lens.fs" />
     <Compile Include="..\Lenses\Lenses.fs" />
   </ItemGroup>

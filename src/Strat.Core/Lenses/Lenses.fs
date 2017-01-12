@@ -1,6 +1,6 @@
-﻿namespace Strat.Core.Lenses
+﻿namespace Strat.Lenses
 
-open Strat.Core.Lenses.Lens
+open Strat.Lenses.Lens
 
 /// Lenses for Map<_,_>
 module Map = 

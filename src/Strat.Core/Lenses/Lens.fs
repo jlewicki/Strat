@@ -1,4 +1,4 @@
-﻿namespace Strat.Core.Lenses
+﻿namespace Strat.Lenses
 
 
 /// Functions for creating and using lens
