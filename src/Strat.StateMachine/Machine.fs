@@ -48,7 +48,9 @@ module StateMachine =
    let private findState stateName (stateTree: StateTree<'D,'M>) =
       match stateTree.States |> Map.tryFind stateName with
       | Some(state) -> state.Value
-      | None -> invalidOp <| sprintf "Unable to find a state with name %A in the state tree." stateName
+      | None -> 
+         let name  = match stateName with StateName(n) -> n 
+         invalidOp <| sprintf "Unable to find a state with name %s in the state tree." name
 
 
    /// Throws an exception if parent is not the parent state of child. 
@@ -56,9 +58,9 @@ module StateMachine =
       match State.parent child with 
       | Some(parentOfChild) ->
          if not (equals parentOfChild parent) then
-            invalidOp <| sprintf "State %A is not a child state of %A" child parent
+            invalidOp <| sprintf "State %s is not a child state of %s" (nameText child) (nameText parent)
       | None -> 
-         invalidOp <| sprintf "State %A is missing a parent state" child
+         invalidOp <| sprintf "State %s is missing a parent state" (nameText child)
 
 
    /// Throws an exception of the root ancestor of the state is not the specified root state.
@@ -67,10 +69,10 @@ module StateMachine =
       if not (equals stateRoot rootState) then 
          let msg = 
             sprintf 
-               "State %A has a different root state (%A) than the expected root (%A)" 
-               (name state)
-               (name stateRoot)
-               (name rootState)
+               "State %s has a different root state (%s) than the expected root (%s)" 
+               (nameText state)
+               (nameText stateRoot)
+               (nameText rootState)
          invalidOp <| msg
 
 

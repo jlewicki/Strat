@@ -14,8 +14,13 @@ module State =
 
 
    /// Returns the name of the state
-   let name (state:State<_,_>) = 
+   let inline name (state:State<_,_>) = 
       state.Name
+
+
+   /// Returns the textual name of the state
+   let nameText (state:State<_,_>) = 
+      match state.Name with | StateName name -> name
 
 
    /// Returns a value indicating if the specified state is a root state.
