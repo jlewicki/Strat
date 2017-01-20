@@ -157,6 +157,19 @@ module List =
       | x::rest -> newHead::rest
 
 
+   /// Returns a list with the same elements as the specified list, except for the last item, which is replaced by the
+   /// specified item. 
+   let replaceLast newLast items =
+      match items with
+      | [] -> invalidArg "items" "items cannot be empty"
+      | _ -> 
+         let _, newList =
+            List.foldBack (fun item (replaced, newList) -> 
+               if replaced then (replaced, item::newList)
+               else (true, newLast::newList)
+            ) items (false, List.empty)
+         newList
+
 /// Extensions to the Map module.
 module Map = 
    

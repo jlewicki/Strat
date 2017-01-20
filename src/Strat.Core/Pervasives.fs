@@ -1,4 +1,4 @@
-﻿namespace Strat.Core
+﻿namespace Strat
 
 open System
 open System.Collections.Generic
