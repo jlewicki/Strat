@@ -436,6 +436,21 @@ type StateTreeBuilder<'D, 'M>() =
       this.AddChildState parent (name, build)
       this
 
+   /// Defines an interior (non-root, non-leaf) state with a handler that will be created by the specified function,
+   /// the first time the state is entered.
+   member this.DefineInteriorState
+      ( name: StateName,
+        parent: StateName,
+        initialTransition: InitialTransition<'D>,
+        createHandler: Func<StateHandler<'D,'M>> ) = 
+
+      let build (lazyParent: Lazy<State<_,_>>) =
+         lazy  
+            let handler = createHandler.Invoke()
+            Intermediate (name, lazyParent.Value, handler, initialTransition)
+      this.AddChildState parent (name, build)
+      this
+
    /// Defines a leaf state with the specified asynchronous handler functions.
    member this.DefineLeafState
       ( name: StateName,
@@ -470,7 +485,8 @@ type StateTreeBuilder<'D, 'M>() =
         createHandler: Func<StateHandler<'D,'M>> ) = 
 
       let build (lazyParent: Lazy<State<_,_>>) = 
-         let handler = createHandler.Invoke()
-         lazy (Leaf (name, lazyParent.Value, handler))
+         lazy
+            let handler = createHandler.Invoke()
+            Leaf (name, lazyParent.Value, handler)
       this.AddChildState parent (name, build)
       this
