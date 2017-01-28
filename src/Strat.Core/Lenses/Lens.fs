@@ -1,18 +1,20 @@
 ﻿namespace Strat.Lenses
 
+open Strat
+
 
 /// Functions for creating and using lens
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Lens =
    
-   type Store<'T, 'TField> = ('TField -> 'T) * 'TField
+   type Store<'T, 'TField> = ('TField -> 'T) * Lazy<'TField>
    type Lens<'T,'TField> = Lens of ('T -> Store<'T,'TField>)
    type PartialStore<'T, 'TField> = ('TField -> 'T) * option<'TField>
    type PartialLens<'T,'TField> = PLens of ('T -> PartialStore<'T,'TField>)
 
 
    let fromGetSet (get: 'T -> 'TField) (set: 'TField -> 'T -> 'T) : Lens<'T,'TField> = 
-      Lens(fun t -> (fun value -> set value t), (get t))
+      Lens(fun t -> (fun value -> set value t), lazy (get t))
 
 
    let fromGetSetPartial (get: 'T -> option<'TField>) (set: 'TField -> 'T -> 'T) : PartialLens<'T,'TField> = 
@@ -20,7 +22,7 @@ module Lens =
 
 
    let get (Lens(lens)) from : 'TField = 
-      snd (lens from)
+      from |> lens |> snd |> Lazy.value
 
 
    let (|->) from lens = 
@@ -33,7 +35,7 @@ module Lens =
 
    let update (Lens(lens)) fUpdate into = 
       let set, cur = lens into
-      set (fUpdate cur)
+      set (fUpdate cur.Value)
 
 
    let getPartial (PLens(plens)) from : option<'TField> =
@@ -64,10 +66,15 @@ module Lens =
 
    let (-->) (Lens(lens1)) (Lens(lens2)) = 
       Lens(fun t ->
-         let set1, c1 = lens1 t
-         let set2, c2  = lens2 c1
-         let set = fun v -> set1 (set2 v)
-         set, c2 )
+         let set1, lv1 = lens1 t
+         //let set2, lv2  = lens2 lv1.Value
+         let lv = lazy (
+            let _, lv2 = lens2 lv1.Value
+            lv2.Value)
+         let set = fun v -> 
+            let set2, _  = lens2 lv1.Value
+            set1 (set2 v)
+         set, lv )
  
 
    let (??>) (PLens(plens1)) (PLens(plens2)) =
@@ -87,7 +94,7 @@ module Lens =
          | set1, Some(c1) ->
             let set2, c2  = lens2 c1
             let set = fun v -> set1 (set2 v)
-            set, (Some(c2)) 
+            set, (Some(c2.Value)) 
          | set1, None ->
            (fun v -> t), None)
 
@@ -95,6 +102,6 @@ module Lens =
    let (-?>) (Lens(lens1)) (PLens(plens2)) =
       PLens(fun t ->
          let set1, c1 = lens1 t
-         let set2, c2 = plens2 c1
+         let set2, c2 = plens2 c1.Value
          let set = fun v -> set1 (set2 v)
          set, c2 )

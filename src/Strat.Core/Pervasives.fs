@@ -252,3 +252,8 @@ module Tuple4 =
       else raise <| invalidArg "i" "i must be 0 or 1"
 
 
+/// Functions for working with Lazy values.
+module Lazy = 
+   
+   /// Returns the value of the specified lazy.
+   let inline value (l: Lazy<_>) = l.Value
