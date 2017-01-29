@@ -6,7 +6,6 @@ open Strat.StateMachine
 open Xunit
 open Strat.StateMachine.Test.TransitionsSm
 
-
 module AgentStopTests = 
    
    let assertStopped lifecycle (expFromState, expStopType,  expReason) = 
@@ -40,7 +39,7 @@ module AgentStopTests =
       let threadID = Threading.Thread.CurrentThread.ManagedThreadId
       let mutable stoppedRaised = false
       let mutable raisedOnThreadID = -1
-      let sm = startStateMachine initData stateA2A
+      use sm = startStateMachine initData stateA2A
       sm.Stopped.Add(fun _ -> 
          stoppedRaised <- true
          raisedOnThreadID <- Threading.Thread.CurrentThread.ManagedThreadId )
@@ -52,19 +51,20 @@ module AgentStopTests =
    [<Fact>]
    let Internal_Stop_Should_Raise_Stopped_Event() = 
       let threadID = Threading.Thread.CurrentThread.ManagedThreadId
-      let mutable raisedOnThreadID = -1
-      let sm = startStateMachine initData stateA2A
+      let mutable raisedOnThreadID = None
       let lockObj = new obj()
+      use sm = startStateMachine initData stateA2A
       sm.Stopped.Add( fun _ -> 
-         raisedOnThreadID <- Threading.Thread.CurrentThread.ManagedThreadId
-         lock lockObj (fun() -> Monitor.Pulse lockObj) )
+         raisedOnThreadID <- Some(Threading.Thread.CurrentThread.ManagedThreadId)
+         lock lockObj (fun() -> Monitor.Pulse lockObj))
       let reason,code = "because", 1
    
       sm.SendMessage (Stop(reason, code)) |> ignore
       
-      Assert.True( lock lockObj (fun() -> Monitor.Wait(lockObj, TimeSpan.FromSeconds 0.5))) 
       // Make sure event is raised on a different thread.
-      Assert.NotEqual(threadID, raisedOnThreadID)
+      Assert.True( lock lockObj (fun() -> Monitor.Wait(lockObj, TimeSpan.FromSeconds 1.0))) 
+      Assert.True(raisedOnThreadID.IsSome)
+      Assert.NotEqual(threadID, raisedOnThreadID.Value)
 
 
    [<Fact>]
@@ -119,7 +119,9 @@ module AgentErrorHandlingTests =
    let SendMessageAsync_Should_Throw_When_MessageHandler_Throws() = 
       use sm = startStateMachine initData stateA2A
       let ex = new ArgumentException()
-      let thrown = Assert.Throws( typeof<AggregateException>,  fun() -> (sm.SendMessageAsync (Throw(ex))).Result |> ignore ) :?> AggregateException
+      let thrown = 
+         Assert.Throws( typeof<AggregateException>,  fun() -> 
+            (sm.SendMessageAsync (Throw ex)).Result |> ignore )
       Assert.Same( ex, thrown.GetBaseException().InnerException  )
 
 
@@ -164,7 +166,8 @@ module AgentStartTests =
    let StartAsync_Should_Throw_If_Timeout_Expires() = 
       let sm = newStateMachine initData stateSleepOnEnter
       let timeout = stateSleepOnEnterExitSleepInSeconds / 2.0
-      let ex = Assert.Throws<AggregateException>( fun() -> sm.StartAsync(TimeSpan.FromSeconds timeout).Wait() )
+      let ex = Assert.Throws<AggregateException>( fun() -> 
+         sm.StartAsync(TimeSpan.FromSeconds timeout).Wait() |> ignore)
       Assert.IsAssignableFrom<TimeoutException>( ex.GetBaseException() )
 
 
@@ -173,20 +176,20 @@ module AgentSendMessageTests =
    [<Fact>]
    let SendMessage_Should_Raise_Transitioned_When_Transition_Occurs() = 
       let threadID = Threading.Thread.CurrentThread.ManagedThreadId
-      let mutable transitionedRaised = false
-      let mutable raisedOnThreadID = -1
+      let mutable raisedOnThreadID = None
       let lockObj = new obj()
-      let sm = startStateMachine initData stateA2A
+      use sm = startStateMachine initData stateA2A
       sm.Transitioned.Add (fun _ -> 
-         raisedOnThreadID <- Threading.Thread.CurrentThread.ManagedThreadId
-         lock lockObj (fun() -> Monitor.Pulse lockObj) ) 
+         raisedOnThreadID <- Some(Threading.Thread.CurrentThread.ManagedThreadId)
+         lock lockObj (fun() -> Monitor.Pulse lockObj))
       
       // M1 will transition to stateA1
       sm.SendMessage M1 |> ignore
       
-      Assert.True( lock lockObj (fun() -> Monitor.Wait(lockObj, TimeSpan.FromSeconds 0.5))) 
-       // Make sure event is raised on a different thread.
-      Assert.NotEqual(threadID, raisedOnThreadID)
+      // Make sure event is raised on a different thread.
+      Assert.True( lock lockObj (fun() -> Monitor.Wait(lockObj, TimeSpan.FromSeconds 1.0))) 
+      Assert.True(raisedOnThreadID.IsSome)
+      Assert.NotEqual(threadID, raisedOnThreadID.Value)
 
 
    [<Fact>]
@@ -194,15 +197,16 @@ module AgentSendMessageTests =
       let threadID = Threading.Thread.CurrentThread.ManagedThreadId
       let mutable raisedOnThreadID = -1
       let lockObj = new obj()
-      let sm = startStateMachine initData stateA2A
+      use sm = startStateMachine initData stateA2A
       sm.Transitioned.Add (fun _ -> 
          raisedOnThreadID <- Threading.Thread.CurrentThread.ManagedThreadId
-         lock lockObj (fun() -> Monitor.Pulse lockObj) ) 
+         lock lockObj (fun() -> 
+            Monitor.Pulse lockObj) ) 
       
       // M1 will transition to stateA1
       (sm.SendMessageAsync M1) |> ignore
       
-      Assert.True( lock lockObj (fun() -> Monitor.Wait(lockObj, TimeSpan.FromSeconds 0.5))) 
+      Assert.True( lock lockObj (fun() -> Monitor.Wait(lockObj, TimeSpan.FromSeconds 1.0))) 
        // Make sure event is raised on a different thread.
       Assert.NotEqual(threadID, raisedOnThreadID)
 
@@ -249,6 +253,7 @@ module AgentSendMessageTests =
       let sm = startStateMachine initData stateSleepOnExit
       let timeout = stateSleepOnEnterExitSleepInSeconds / 2.0
       // M1 will exit/reenter stateSleepOnExit
-      let ex = Assert.Throws<AggregateException>( fun() -> sm.SendMessageAsync(M1, TimeSpan.FromSeconds timeout).Result |> ignore  )
+      let ex = Assert.Throws<AggregateException>( fun() -> 
+         sm.SendMessageAsync(M1, TimeSpan.FromSeconds timeout).Result |> ignore)
       Assert.IsAssignableFrom<TimeoutException>( ex.GetBaseException() )
 

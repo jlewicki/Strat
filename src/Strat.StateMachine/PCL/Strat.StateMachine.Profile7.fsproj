@@ -43,13 +43,27 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="../AssemblyInfo.fs" />
-    <Compile Include="../Types.fs" />
-    <Compile Include="../State.fs" />
-    <Compile Include="../Machine.fs" />
-    <Compile Include="../Agent.fs" />
-    <Compile Include="../Definition.fs" />
-    <Compile Include="../Interop.fs" />
+    <Compile Include="../AssemblyInfo.fs">
+      <Link>AssemblyInfo.fs</Link>
+    </Compile>
+    <Compile Include="../Types.fs">
+      <Link>Types.fs</Link>
+    </Compile>
+    <Compile Include="../State.fs">
+      <Link>State.fs</Link>
+    </Compile>
+    <Compile Include="../Machine.fs">
+      <Link>Machine.fs</Link>
+    </Compile>
+    <Compile Include="../Agent.fs">
+      <Link>Agent.fs</Link>
+    </Compile>
+    <Compile Include="../Definition.fs">
+      <Link>Definition.fs</Link>
+    </Compile>
+    <Compile Include="../Interop.fs">
+      <Link>Interop.fs</Link>
+    </Compile>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">12</MinimumVisualStudioVersion>

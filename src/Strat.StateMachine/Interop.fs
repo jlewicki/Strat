@@ -8,7 +8,7 @@ open System.Threading.Tasks
 open Strat.StateMachine
 open Strat.StateMachine.Definition
 
-/// Similar to MessageContext, defined with interop-friendly types.
+/// Similar to MessageContext, defined with C# interop-friendly types.
 type IMessageContext<'D,'M> = 
    /// The message that is being processed.
    abstract Message: 'M
