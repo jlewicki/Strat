@@ -80,13 +80,22 @@ type ReadOnlyProperty<'T>
 module ObservableProperty = 
    
    /// Creates a new ObservableProperty instance.
-   let create initValue values : IObservableProperty<_>= 
-      upcast (new ReadOnlyProperty<_>(initValue, values))
+   let create initialValue values : IObservableProperty<_>= 
+      upcast (new ReadOnlyProperty<_>(initialValue, values))
+
 
    /// Creates a new ObservableProperty instance, using the default value for 'T as the intial value.
    let createWithDefault values : IObservableProperty<'T>= 
       upcast (new ReadOnlyProperty<_>(Unchecked.defaultof<'T>, values))
 
+
    /// Creates a new ObservableProperty instance that always yields that specified value.
-   let always initValue : IObservableProperty<_> =
-      upcast (new ReadOnlyProperty<_>(initValue, Observable.Never()))
+   let always initialValue : IObservableProperty<_> =
+      upcast (new ReadOnlyProperty<_>(initialValue, Observable.Never()))
+
+
+   /// Creates a new ObservableProperty instance instance that yuields values resulting from applying the
+   /// mapping function to the initial value, and each value yielded by the observable.
+   let mapAndCreate (initialValue: 'A) (map: 'A -> 'B) (values: IObservable<'A>) : IObservableProperty<'B> = 
+      let initPropValue = map initialValue
+      upcast (new ReadOnlyProperty<_>(initPropValue, values.Select map))
