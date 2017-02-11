@@ -128,6 +128,25 @@ module AddOrUpdate =
       Assert.Equal<string>( "bar", (Map.find "foo" map) )
 
 
+module TryUpdate = 
+   [<Fact>]
+   let Should_Update_Map_If_Key_Exists() = 
+      let map = Map.empty |> Map.add 1 "foo"
+
+      let updated, map = map |> Map.tryUpdate 1 (fun v -> v.ToUpper())
+
+      Assert.True updated
+      Assert.Equal<string>("FOO", map |> Map.find 1)
+
+   [<Fact>]
+   let Should_Update_Map_If_Key_Does_Not_Exist() = 
+      let origMap = Map.empty |> Map.add 1 "foo"
+
+      let updated, map = origMap |> Map.tryUpdate 4 (fun v -> v.ToUpper())
+
+      Assert.False updated
+      Assert.Same(origMap, map)
+
 
 namespace Strat.Core.Collections.Test.List
 open System

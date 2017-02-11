@@ -180,10 +180,12 @@ module Map =
       map |> Map.add key value
 
 
+   /// Updates the value in the map for the specified key, by applying the specified function to the value. If the
+   /// key does not exist in the map, the map is returned unchanged.
    let tryUpdate key f map = 
       match map |> Map.tryFind key with
-      | Some(value) ->  Some(map |> Map.add key (f value))
-      | None -> None
+      | Some(value) ->  true, (map |> Map.add key (f value))
+      | None -> false, map
 
 
    /// Updates the value in the map for the specified key with the result of applying the specified function.
