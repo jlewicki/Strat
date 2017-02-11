@@ -132,6 +132,9 @@ module Pervasives =
    /// Converts a function accepting a tupled argument into a curried function.
    let inline curry2 f = fun x y -> f(x, y)
 
+   /// Applies the specified arguments to the function, in reverse order.
+   let inline flip f x y = f y x
+
    /// Returns the result of applying the specified function n times to state.
    let applyN n f state = 
       [ 1..n ]
