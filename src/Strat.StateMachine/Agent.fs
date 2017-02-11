@@ -109,7 +109,7 @@ type StateMachineAgent<'D,'M>
    ( stateTree: StateTree<'D,'M>, 
       initialData: 'D, 
       ?initialStateName: StateName, 
-      ?handlerMapping: HandlerMapping<'D,'M> ) as self =  
+      ?handlerMapping: HandlerMapping<'D,'M> ) =  
 
    // Materialize the state tree 
    let rootState, stateMap = stateTree.Root, stateTree.States  
