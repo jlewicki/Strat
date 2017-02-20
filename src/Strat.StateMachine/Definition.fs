@@ -238,12 +238,11 @@ module Define =
 
 module internal Build =
    // Function that creates a child state, given it's parent state
-   type internal StateCreator<'D,'M> = Lazy<State<'D,'M>> -> Lazy<State<'D,'M>>
-   type internal ChildBuilder<'D,'M> = StateName * StateCreator<'D,'M>
+   type StateCreator<'D,'M> = Lazy<State<'D,'M>> -> Lazy<State<'D,'M>>
+   type ChildBuilder<'D,'M> = StateName * StateCreator<'D,'M>
 
 
 open Build
-
 
 /// Base class for builders that is used to define a 'flat' set of states for a state machine, without introducing 
 /// hierarchical relationships between the states.
@@ -284,21 +283,69 @@ type StateBuilderBase<'D,'M>() =
 [<AbstractClass>]
 type StateTreeBuilderBase<'D, 'M>() = 
    let mutable rootState = Option.None
-   // Map of parent states names, keyed by childstate name 
-   // Map of child states names, keyed by parent state name 
+   // Map of parent states names, keyed by child state name 
+   let parentMap = Dictionary<StateName, StateName>()
+   // Map of child builder, keyed by parent state name 
    let childMap = Dictionary<StateName, ResizeArray<ChildBuilder<'D,'M>>>()
 
-   member internal this.AddChildState parentName childBuilder = 
+   member internal this.AddChildState parentName ((childName, childCreator) as childBuilder) = 
       match childMap.TryGetValue parentName with
       | true, children -> 
+         parentMap.Add (childName, parentName)
          children.Add childBuilder
       | false, _ -> 
+         parentMap.Add (childName, parentName)
          childMap.Add (parentName, ResizeArray<ChildBuilder<'D,'M>>(Seq.singleton childBuilder)) 
 
    member internal this.SetRootState state = 
       if rootState.IsSome then raise <| invalidOp "Root state has already been defined"
       if not (state |> State.isRoot) then raise <| invalidArg "state" "State must be a root state"
       rootState <- Some (state)
+
+   // Wraps state handler fucntions of the specified state.
+   member internal this.AddFilter
+      ( ((StateName stateName) as s), 
+        ?onMessageFilter: MessageHandler<'D,'M> -> MessageHandler<'D,'M>,
+        ?onEnterFilter: TransitionHandler<'D,'M> -> TransitionHandler<'D,'M>,
+        ?onExitFilter: TransitionHandler<'D,'M> -> TransitionHandler<'D,'M> ) = 
+       
+      match parentMap.TryGetValue s with
+      | true, ((StateName parentStateName ) as ps) ->  
+         match childMap.TryGetValue ps with
+         | true, children -> 
+            let idx = children |> Seq.findIndex (fun (childName, _) -> childName = s)
+            if idx < 0 then 
+               invalidOp <| sprintf "Unable to find child state %s for parent %s" stateName parentStateName
+            let _, stateCreator = children.[idx]
+            let filteredCreator (lazyParent: Lazy<State<'D,'M>>) = 
+               lazy 
+                  let lazyState = stateCreator lazyParent
+                  let state = lazyState.Value
+                  let handlers = state |> State.handlers
+                  let handlers = 
+                     { OnMessage = 
+                           match onMessageFilter with
+                           | Some onMessageFilter -> onMessageFilter handlers.OnMessage
+                           | _ -> handlers.OnMessage
+                       OnEnter =
+                           match onEnterFilter with
+                           | Some onEnterFilter -> onEnterFilter handlers.OnEnter
+                           | _ -> handlers.OnEnter
+                       OnExit =
+                           match onExitFilter with
+                           | Some onExitFilter -> onExitFilter handlers.OnExit
+                           | _ -> handlers.OnExit }
+                  match state with 
+                  | Root (name, _, initTransition) -> Root(name, handlers, initTransition)
+                  | Intermediate (name, parent, _, initTransition) -> Intermediate (name, parent, handlers, initTransition)
+                  | Leaf (name, parent, _) -> Leaf(name, parent, handlers)
+                  | Terminal _ -> invalidOp "Unexpected Terminal state"
+            children.[idx] <- (s, filteredCreator)
+         | _ -> 
+            invalidOp <| sprintf "Unable to find parent state %s for state %s" parentStateName stateName
+      | _ -> 
+         invalidOp <| sprintf "Unable to find parent state for state %s" stateName
+
 
    /// Returns a new state tree containing all the states that have been defined with this builder.
    member this.ToStateTree() : StateTree<'D,'M> =
@@ -489,4 +536,15 @@ type StateTreeBuilder<'D, 'M>() =
             let handler = createHandler.Invoke()
             Leaf (name, lazyParent.Value, handler)
       this.AddChildState parent (name, build)
+      this
+
+   /// Wraps the message handlers of the state with the specified name with the specified filtering functions. This
+   /// facilitates adding pre and post processing functionality to a state that has already been defined.
+   member this.WrapState
+      ( name: StateName, 
+        ?wrapOnMessage: MessageHandler<'D,'M> -> MessageHandler<'D,'M>,
+        ?wrapOnEnter: TransitionHandler<'D,'M> -> TransitionHandler<'D,'M>,
+        ?wrapOnExit: TransitionHandler<'D,'M> -> TransitionHandler<'D,'M> ) = 
+
+      this.AddFilter( name, ?onMessageFilter = wrapOnMessage, ? onEnterFilter = wrapOnEnter, ?onExitFilter = wrapOnExit)
       this
