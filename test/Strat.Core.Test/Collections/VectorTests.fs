@@ -1,0 +1,128 @@
+﻿namespace Strat.Collections.Test
+
+open System
+open System.Collections.Generic
+open Strat.Collections
+open Xunit
+open Strat.Collections.Vector
+
+
+module Vector =
+
+   let largeArray = Array.unfold (fun i -> if i < 10000 then Some(i + 1, i + 1) else None) 0
+
+   module Empty = 
+      [<Fact>]
+      let should_have_size_0() = 
+         Assert.Equal(0, Vector.empty.Count)
+
+      [<Fact>]
+      let should_be_empty() = 
+         Assert.True Vector.empty.IsEmpty
+
+      [<Fact>]
+      let should_throw_from_indexer() = 
+         Assert.Throws<IndexOutOfRangeException>(Action(fun () -> Vector.empty.[0])) |> ignore
+
+      [<Fact>]
+      let should_yield_no_values_from_enumerator() =
+         let list = List.ofSeq Vector.empty
+         Assert.True list.IsEmpty
+
+ 
+   module Count = 
+      [<Fact>]
+      let should_return_count() = 
+         let pv = Vector.ofArray largeArray
+         Assert.Equal(largeArray.Length, pv.Count)
+
+
+   module IsEmpty = 
+      [<Fact>]
+      let should_return_false_if_not_empty() = 
+         let pv = Vector.ofSeq ["one"; "two"]
+         Assert.False pv.IsEmpty
+
+
+    module Indexer = 
+      [<Fact>]
+      let should_return_value_at_index() = 
+         let pv = Vector.ofArray largeArray
+         largeArray |> Array.iteri (fun idx item -> Assert.Equal (item, pv.[idx]))
+
+      [<Fact>]
+      let should_throw_index_out_of_range() =
+         let pv = Vector.ofSeq ['a'; 'b']
+         Assert.Throws<IndexOutOfRangeException>(Action(fun () -> 
+            pv.[-1] |> ignore)) |> ignore
+         Assert.Throws<IndexOutOfRangeException>(Action(fun () -> 
+            pv.[2] |> ignore)) |> ignore
+
+
+   module Set = 
+      [<Fact>]
+      let should_set_item_at_index() = 
+         let mutable pv = Vector.ofArray largeArray
+         // Reverse items in pv
+         for i in [largeArray.Length - 1 .. -1 .. 0] do
+            let item = largeArray.[i]
+            let pvi = largeArray.Length - i - 1
+            pv <- pv.Set(pvi, item)
+
+         largeArray
+         |> Array.iteri (fun idx item -> 
+            let newIdx = largeArray.Length - idx - 1
+            Assert.Equal(item, pv.[newIdx])) 
+          
+
+   module RemoveLast = 
+      [<Fact>]
+      let should_remove_last_element() = 
+         let mutable pv = Vector.ofArray largeArray
+         for i in [largeArray.Length - 1 .. -1 .. 0] do
+            let item, newPv = pv.RemoveLast()
+            Assert.Equal(largeArray.[i], item)
+            pv <- newPv
+         Assert.True pv.IsEmpty
+
+      [<Fact>]
+      let should_throw_if_vector_is_empty() = 
+         Assert.Throws<InvalidOperationException>(Action(fun () -> 
+            Vector.empty.RemoveLast() |> ignore)) |> ignore
+
+
+   module GetEnumerator = 
+      [<Fact>]
+      let should_return_enumerator_that_yields_items_in_vector() =
+         let pv = Vector.ofArray largeArray
+         use e = (pv :> IEnumerable<int>).GetEnumerator()
+         let mutable currentIndex = 0
+         while e.MoveNext() do
+            Assert.Equal (largeArray.[currentIndex], e.Current)
+            currentIndex <- currentIndex + 1 
+         Assert.Equal (pv.Count, currentIndex)
+
+      [<Fact>]
+      let should_return_enumerator_that_can_be_reset() = 
+         let v = Vector.ofArray largeArray
+         use e = (v :> IEnumerable<int>).GetEnumerator()     
+         for i in [1..(v.Count / 2)] do
+            e.MoveNext() |> ignore
+        
+         e.Reset()
+         
+         let mutable currentIndex = 0
+         while e.MoveNext() do
+            Assert.Equal (largeArray.[currentIndex], e.Current)
+            currentIndex <- currentIndex + 1 
+
+
+   module Map = 
+      [<Fact>]
+      let should_apply_mapping_to_each_item() = 
+         let v = Vector.ofArray largeArray
+         let f (i: int) = i * 2
+         let mappedV = Vector.map f v
+         Assert.Equal(v.Count, mappedV.Count)
+         for i in [0 .. v.Count - 1] do
+            Assert.Equal(largeArray.[i] * 2, mappedV.[i])
