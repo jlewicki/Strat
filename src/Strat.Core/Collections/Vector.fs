@@ -6,7 +6,17 @@ open System.Collections.Generic
 open System.Threading
 
 
-module Impl =
+// Persistent vector, implemented as bit-partitioned vector trie.
+//
+// This implementation is very similar to Clojure's PersistentVector, with an additional tweak strongly-typed arrays
+// in leaf nodes, to avoid boxing overhead.
+//
+// Some helpful background links:
+// http://hypirion.com/musings/understanding-persistent-vector-pt-2
+// https://github.com/clojure/clojure/blob/master/src/jvm/clojure/lang/PersistentVector.java
+
+// Internal implementation details, shared between TransientVector and Vector
+module Trie =
 
    // Number of bits to represent an index into the array stored in each node of the tree
    let Bits = 5
@@ -147,8 +157,7 @@ module Impl =
          invalidOp "Unexpected leaf nodes"
       
 
-module PV = Impl
-open Impl
+open Trie
 
 // Persistent vector implementation.
 //
@@ -163,7 +172,7 @@ open Impl
 type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =  
 
    static let emptyInteriorNode : Node<'T> = Interior(noEditThread, newNodeArray())
-   static let empty = new Vector<'T> (0, PV.Bits, emptyInteriorNode, Array.empty) 
+   static let empty = new Vector<'T> (0, Trie.Bits, emptyInteriorNode, Array.empty) 
    static member Empty = empty
   
 
@@ -181,11 +190,11 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
       if isNull items then 
          raise <| ArgumentNullException("items")
       let size = items.Count
-      if size <= PV.NodeArraySize then
+      if size <= Trie.NodeArraySize then
          // Small collection that can fit in the tail part
          let arr = Array.zeroCreate size
          items.CopyTo (arr, 0)
-         new Vector<'T> (size, PV.Bits, emptyInteriorNode, arr)
+         new Vector<'T> (size, Trie.Bits, emptyInteriorNode, arr)
       else
          new Vector<'T> (items :> seq<'T>)
 
@@ -202,25 +211,25 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
       with get (index: int) : 'T =
          if index < 0 || index >= count then 
             raise <| IndexOutOfRangeException (index.ToString())
-         let arr = PV.leafArrayFor (index, count, shift, root, tail)
-         arr.[PV.arrayIndex index]
+         let arr = Trie.leafArrayFor (index, count, shift, root, tail)
+         arr.[arrayIndex index]
 
 
    member this.Set(index: int, item: 'T)  = 
       if index < 0 || index >= count then
          raise <| IndexOutOfRangeException (index.ToString())
-      if index >= PV.tailOffset count then
+      if index >= tailOffset count then
          // Index points to an item in the tail part, so just create a new tail
          let newTail = Array.copy tail
-         newTail.[PV.arrayIndex index] <- item
+         newTail.[arrayIndex index] <- item
          Vector<'T> (count, shift, root, newTail)
       else
          // Index points to an item in the tree part, so update the tree
-         new Vector<'T> (count, shift, (PV.setTree shift root index item), tail)
+         new Vector<'T> (count, shift, (setTree shift root index item), tail)
 
 
    member this.Add (item: 'T) = 
-      if count - (PV.tailOffset count) < PV.NodeArraySize then 
+      if count - (tailOffset count) < Trie.NodeArraySize then 
          // There is room in the 'tail part' array, so store the item there
          let newTail = Array.zeroCreate (tail.Length + 1)
          System.Array.Copy(tail, newTail, tail.Length)
@@ -231,16 +240,16 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
          let tailNode = Leaf (root.OwnerThread, tail)
          let mutable newRoot = nullNode()
          let mutable newShift = shift
-         if (count >>> PV.Bits) > (1 <<< shift) then
+         if (count >>> Trie.Bits) > (1 <<< shift) then
             // No room in tree part for the tail, so create a new level in the tree
-            let newArr = PV.newNodeArray()
+            let newArr = newNodeArray()
             newArr.[0] <- root
-            newArr.[1] <- PV.newPath (root.OwnerThread, shift, tailNode)
+            newArr.[1] <- newPath (root.OwnerThread, shift, tailNode)
             newRoot <- Interior (root.OwnerThread, newArr)
-            newShift <- shift + PV.Bits
+            newShift <- shift + Trie.Bits
          else 
             // There is room in the tree for the tail, so push the tail into the tree
-            newRoot <- PV.pushTail (mkPersistentParent, count, shift, root, tailNode)
+            newRoot <- pushTail (mkPersistentParent, count, shift, root, tailNode)
         
          // New vector, with the added item stored in the tail
          new Vector<'T> (count + 1, newShift, newRoot, Array.singleton item)
@@ -252,8 +261,7 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
       elif count = 1 then
          tail.[tail.Length - 1], empty
       else
-         let diff = count - PV.tailOffset count
-         if (count - PV.tailOffset count) > 1 then
+         if (count - tailOffset count) > 1 then
             // Last item is in the tail, so build a new tail with the item removed
             let last = tail.[tail.Length - 1]
             let newTail = Array.zeroCreate (tail.Length - 1)
@@ -262,17 +270,17 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
          else
             let last = this.[count - 1]
             // Move contents of last node into new tail array
-            let newTail = PV.leafArrayFor (count - 2, count, shift, root, tail)
+            let newTail = leafArrayFor (count - 2, count, shift, root, tail)
             let mutable newRoot = this.RemoveLastLeaf (shift, root)
             let mutable newShift = shift
             if isNullNode newRoot then 
                newRoot <- emptyInteriorNode
-            if shift > PV.Bits then  
+            if shift > Trie.Bits then  
                match newRoot with
                | Interior(_, arr) ->
                   if isNullNode arr.[1] then
                      newRoot <- arr.[0]
-                     newShift <- newShift - PV.Bits
+                     newShift <- newShift - Trie.Bits
                | Leaf(_) -> 
                   invalidOp "Unexpected leaf node"
             // Move contents of last node into tail array
@@ -304,12 +312,12 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
 
    // Returns a new node that represents the specfied node, with its last node removed
    member private this.RemoveLastLeaf (level: int, node: Node<'T>) : Node<'T> = 
-      let childIndex = PV.arrayIndex ((count - 2) >>> level)
-      if level > PV.Bits then
+      let childIndex = arrayIndex ((count - 2) >>> level)
+      if level > Trie.Bits then
          match node with
          | Interior(_, arr) ->
             // Descend deeper into tree
-            let newChild = this.RemoveLastLeaf (level - PV.Bits, arr.[childIndex])
+            let newChild = this.RemoveLastLeaf (level - Trie.Bits, arr.[childIndex])
             if isNullNode newChild && childIndex = 0 then
                nullNode()
             else
@@ -339,9 +347,9 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
       let reset() = 
          i <- startIdx - 1
          leafArray <- 
-            if startIdx < count then PV.leafArrayFor (startIdx, count, shift, root, tail) 
+            if startIdx < count then leafArrayFor (startIdx, count, shift, root, tail) 
             else null
-         baseI <- startIdx - (startIdx % PV.Bits)
+         baseI <- startIdx - (startIdx % Trie.Bits)
       let current() = 
          if i = startIdx - 1 then 
             raise <| new InvalidOperationException("The enumerator has not been started by a call to MoveNext")
@@ -357,11 +365,11 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
                // Onetime bookeeping for starting iteration
                if i = startIdx - 1 then i <- startIdx
                if i < endIdx then
-                  if (i - baseI) = PV.NodeArraySize then
+                  if (i - baseI) = Trie.NodeArraySize then
                      // We've iterated thrugh the current leaf array, so get the next one
-                     leafArray <- PV.leafArrayFor (i, count, shift, root, tail)
-                     baseI <- baseI + PV.NodeArraySize
-                  currentItem <- leafArray.[PV.arrayIndex i]
+                     leafArray <- leafArrayFor (i, count, shift, root, tail)
+                     baseI <- baseI + Trie.NodeArraySize
+                  currentItem <- leafArray.[arrayIndex i]
                   i <- i + 1
                   true
                else
@@ -402,9 +410,9 @@ and internal TransientVector<'T> (count:int, shift: int, root: Node<'T>, tail: '
    member this.Add (item: 'T) : TransientVector<'T> = 
       this.EnsureEditable()
       let i = count
-      if (i - PV.tailOffset count) < PV.NodeArraySize then
+      if (i - tailOffset count) < Trie.NodeArraySize then
          // There is room in the 'tail part' array, so store the item there
-         tail.[PV.arrayIndex i] <- item
+         tail.[arrayIndex i] <- item
          count <- count + 1
          this
       else
@@ -413,13 +421,13 @@ and internal TransientVector<'T> (count:int, shift: int, root: Node<'T>, tail: '
          tail.[0] <- item
          let mutable newRoot = nullNode()
          let mutable newShift = shift
-         if (count >>> PV.Bits) > (1 <<< shift) then
+         if (count >>> Trie.Bits) > (1 <<< shift) then
             // No room in tree part for the tail, so create a new level in the tree
             let newArr = newNodeArray()
             newArr.[0] <- root
             newArr.[1] <- newPath (root.OwnerThread, shift, tailNode)
             newRoot <- Interior (root.OwnerThread, newArr)
-            newShift <- shift + PV.Bits
+            newShift <- shift + Trie.Bits
          else 
             // There is room in the tree for the tail, so push the tail into the tree
             newRoot <- pushTail(this.EnsureEditable, count, shift, root, tailNode)
@@ -432,7 +440,7 @@ and internal TransientVector<'T> (count:int, shift: int, root: Node<'T>, tail: '
    member this.ToPersistent() : Vector<'T> = 
       this.EnsureEditable()
       root <- root.SetOwnerThread (ref null)
-      let trimmedTail = Array.zeroCreate (count - PV.tailOffset count)
+      let trimmedTail = Array.zeroCreate (count - tailOffset count)
       System.Array.Copy (tail, trimmedTail, trimmedTail.Length)
       Vector<'T>(count, shift, root, trimmedTail)
       
