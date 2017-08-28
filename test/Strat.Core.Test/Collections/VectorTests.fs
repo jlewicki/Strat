@@ -4,7 +4,6 @@ open System
 open System.Collections.Generic
 open Strat.Collections
 open Xunit
-open Strat.Collections.Vector
 
 
 module Vector =
@@ -73,7 +72,20 @@ module Vector =
          |> Array.iteri (fun idx item -> 
             let newIdx = largeArray.Length - idx - 1
             Assert.Equal(item, pv.[newIdx])) 
-          
+
+   module Add = 
+      [<Fact>]
+      let should_add_item_at_end_of_vector() = 
+         let largeArray = Array.unfold (fun i -> if i < 35 then Some(i + 1, i + 1) else None) 0
+         let mutable pv = Vector.empty
+         largeArray
+         |> Array.iteri (fun idx item -> pv <- pv.Add item)
+
+         Assert.Equal (largeArray.Length, pv.Count)
+         largeArray
+         |> Array.iteri (fun idx item -> 
+            Assert.Equal(item, pv.[idx])) 
+
 
    module RemoveLast = 
       [<Fact>]
