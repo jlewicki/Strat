@@ -74,7 +74,7 @@ module Vector =
 
    /// O(1). Returns the item at the specified 0-based index. Throws an exception if the index is out of range.
    [<CompiledName("Get")>]
-   val inline nth: index:int -> vector:Vector<'T> -> 'T
+   val inline get: index:int -> vector:Vector<'T> -> 'T
 
    /// Returns a new vector by replacing the item at the specified index with the specfied item.
    [<CompiledName("Set")>]

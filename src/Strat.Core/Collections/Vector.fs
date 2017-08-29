@@ -511,7 +511,7 @@ module Vector =
       vector.IsEmpty
 
    [<CompiledName("Get")>]
-   let inline nth (index: int) (vector: Vector<'T>) = 
+   let inline get (index: int) (vector: Vector<'T>) = 
       vector.[index]
 
    [<CompiledName("Set")>]
