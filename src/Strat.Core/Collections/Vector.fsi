@@ -93,6 +93,11 @@ module Vector =
    [<CompiledName("Iterate")>]
    val iter: f:('T -> unit) -> vector:Vector<'T> -> unit
 
+    /// O(N): Applies the specified function to each element of the vector. The integer passed to the function
+    // indicates the index of element.
+   [<CompiledName("IterateIndexed")>]
+   val iteri: f:(int -> 'T -> unit) -> vector:Vector<'T> -> unit
+
    /// O(1): Views the specified vector as a sequence.
    [<CompiledName("ToSeq")>]
    val inline toSeq: vector:Vector<'T> -> seq<'T>

@@ -160,6 +160,18 @@ module Vector =
          Assert.Equal (v.Count, nextI)
 
 
+   module Iteri = 
+      [<Fact>]
+      let should_apply_function_to_each_item_in_vector() = 
+         let v = Vector.ofArray largeArray
+         let mutable nextI = 0
+         v |> Vector.iteri (fun i item ->
+            Assert.Equal (nextI, i)
+            Assert.Equal (v.[nextI], item) 
+            nextI <- nextI + 1 )
+         Assert.Equal (v.Count, nextI)
+
+
    module ToArray = 
       [<Fact>]
       let should_copy_elements_to_array() = 

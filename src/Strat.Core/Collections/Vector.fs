@@ -143,7 +143,27 @@ module Trie =
          newParent
       | _ ->
          invalidOp "Unexpected leaf nodes"
-      
+
+
+   // Applies the function to each element in the list, with index
+   let iteri (f:int->'T->unit, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
+      let mutable i = startIdx
+      let mutable baseI = startIdx - (startIdx % Bits)
+      let mutable leafArray = leafArrayFor (startIdx, count, shift, root, tail) 
+      while i < endIdxExclusive do
+         if (i - baseI) = NodeArraySize then
+            // We've iterated thrugh the current leaf array, so get the next one
+            leafArray <- leafArrayFor (i, count, shift, root, tail)
+            baseI <- baseI + NodeArraySize
+         f i leafArray.[arrayIndex i]
+         i <- i + 1
+
+
+   // Applies the function to each element in the list, with index
+   let iter (f:'T->unit, startIdx, endIdx, count, shift, root, tail) =   
+      let ignoreIdx (idx:int) item = f item
+      iteri (ignoreIdx, startIdx, endIdx, count, shift, root, tail)
+
 
 open Trie
 
@@ -507,8 +527,12 @@ module Vector =
       vector.Map f
 
    [<CompiledName("Iterate")>]
-   let iter (f: 'T -> unit) (vector: Vector<'T>) = 
-      vector.Iterate f
+   let iter (f: 'T -> unit) (v: Vector<'T>) =
+      Trie.iter (f, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+
+   [<CompiledName("IterateIndexed")>]
+   let iteri (f: int -> 'T -> unit) (v: Vector<'T>) =
+      Trie.iteri (f, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
 
    [<CompiledName("ToSeq")>]
    let inline toSeq (vector: Vector<'T>)  =
