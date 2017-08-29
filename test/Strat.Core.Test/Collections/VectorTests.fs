@@ -149,6 +149,15 @@ module Vector =
             Assert.Equal (largeArray.[i] * 2, mappedV.[i])
 
 
+   module Filter = 
+      [<Fact>]
+      let should_apply_predicate_and_only_include_items_when_true() = 
+         let v = Vector.ofArray largeArray
+         let pred item = item % 2 = 0
+         let filteredV = v |> Vector.filter pred
+         Assert.Equal( largeArray.Length / 2, filteredV.Count)
+
+
    module Iter = 
       [<Fact>]
       let should_apply_function_to_each_item_in_vector() = 

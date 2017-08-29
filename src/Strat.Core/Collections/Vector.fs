@@ -145,8 +145,9 @@ module Trie =
          invalidOp "Unexpected leaf nodes"
 
 
-   // Applies the function to each element in the list, with index
-   let iteri (f:int->'T->unit, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
+   // Applies the function to each element in the list, with index.  Iteration continues while the function returns 
+   /// true.
+   let iteri (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
       let mutable i = startIdx
       let mutable baseI = startIdx - (startIdx % Bits)
       let mutable leafArray = leafArrayFor (startIdx, count, shift, root, tail) 
@@ -155,13 +156,15 @@ module Trie =
             // We've iterated thrugh the current leaf array, so get the next one
             leafArray <- leafArrayFor (i, count, shift, root, tail)
             baseI <- baseI + NodeArraySize
-         f i leafArray.[arrayIndex i]
-         i <- i + 1
+         let cont = f i leafArray.[arrayIndex i]
+         i <- if cont then i + 1 else endIdxExclusive
 
 
    // Applies the function to each element in the list, with index
    let iter (f:'T->unit, startIdx, endIdx, count, shift, root, tail) =   
-      let ignoreIdx (idx:int) item = f item
+      let ignoreIdx (idx:int) item =
+         f item
+         true
       iteri (ignoreIdx, startIdx, endIdx, count, shift, root, tail)
 
 
@@ -526,13 +529,27 @@ module Vector =
    let inline map (f: 'T -> 'U) (vector: Vector<'T>) = 
       vector.Map f
 
+   [<CompiledName("Filter")>]
+   let filter (predicate: 'T -> bool) (v: Vector<'T>) =
+      let filteredV = new TransientVector<'T> ()
+      let iteriFiltered _ item = 
+         let included = predicate item
+         if included then 
+            filteredV.Add item |> ignore
+         true
+      Trie.iteri (iteriFiltered, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      filteredV.ToPersistent()
+
    [<CompiledName("Iterate")>]
    let iter (f: 'T -> unit) (v: Vector<'T>) =
       Trie.iter (f, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
 
    [<CompiledName("IterateIndexed")>]
    let iteri (f: int -> 'T -> unit) (v: Vector<'T>) =
-      Trie.iteri (f, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      let iteriAll idx item =
+         f idx item
+         true
+      Trie.iteri (iteriAll, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
 
    [<CompiledName("ToSeq")>]
    let inline toSeq (vector: Vector<'T>)  =

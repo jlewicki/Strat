@@ -84,10 +84,15 @@ module Vector =
    [<CompiledName("RemoveLast")>]
    val inline removeLast: vector:Vector<'T> -> 'T * Vector<'T>
 
-   /// O(N): Returns a new vector whose elements are the results of applying the given function to each of the elements
-   /// of the vector.
+   /// O(N): Returns a new vector whose elements are the results of applying the specified function to each of the
+   /// elements of the vector.
    [<CompiledName("Map")>]
    val inline map: f:('T -> 'U) -> vector:Vector<'T> -> Vector<'U>
+
+   /// O(N): Returns a new vector containing only the elements of the vector for which the specified predicate returns
+   /// true.
+   [<CompiledName("Filter")>]
+   val filter: predicate:('T -> bool) -> vector:Vector<'T> -> Vector<'T>
 
    /// O(N): Applies the specified function to each element in the vector.
    [<CompiledName("Iterate")>]
