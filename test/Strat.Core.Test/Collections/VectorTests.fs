@@ -73,6 +73,15 @@ module Vector =
             let newIdx = largeArray.Length - idx - 1
             Assert.Equal(item, pv.[newIdx])) 
 
+      [<Fact>]
+      let should_leave_original_vector_unchanged() = 
+         let v = Vector.ofArray largeArray
+         let idx = v.Count / 2
+         let orig = v.[idx]
+         let newV = v.Set (idx, orig *2)
+         Assert.Equal(orig, v.[idx])
+
+
    module Add = 
       [<Fact>]
       let should_add_item_at_end_of_vector() = 
@@ -131,10 +140,37 @@ module Vector =
 
    module Map = 
       [<Fact>]
-      let should_apply_mapping_to_each_item() = 
+      let should_apply_mapping_to_each_item_in_vector() = 
          let v = Vector.ofArray largeArray
          let f (i: int) = i * 2
          let mappedV = Vector.map f v
-         Assert.Equal(v.Count, mappedV.Count)
+         Assert.Equal (v.Count, mappedV.Count)
          for i in [0 .. v.Count - 1] do
-            Assert.Equal(largeArray.[i] * 2, mappedV.[i])
+            Assert.Equal (largeArray.[i] * 2, mappedV.[i])
+
+
+   module Iter = 
+      [<Fact>]
+      let should_apply_function_to_each_item_in_vector() = 
+         let v = Vector.ofArray largeArray
+         let mutable nextI = 0
+         v |> Vector.iter (fun item ->
+            Assert.Equal (v.[nextI], item) 
+            nextI <- nextI + 1 )
+         Assert.Equal (v.Count, nextI)
+
+
+   module ToArray = 
+      [<Fact>]
+      let should_copy_elements_to_array() = 
+         let v = Vector.ofArray largeArray
+         let arr = Vector.toArray v
+         Assert.Equal (v.Count, arr.Length)
+         for i in [0 .. v.Count - 1] do
+            Assert.Equal (v.[i], arr.[i]) 
+
+      [<Fact>]
+      let should_return_empty_array_if_vector_is_empty() = 
+          let arr = Vector.toArray Vector.empty
+          Assert.NotNull arr
+          Assert.Equal (0, arr.Length)

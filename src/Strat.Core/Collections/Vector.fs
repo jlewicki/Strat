@@ -66,18 +66,6 @@ module Trie =
       Array.zeroCreate NodeArraySize   
 
 
-   let editableNode (node: Node<'T>) : Node<'T> =
-      match node with
-      | Interior(ot, arr) -> Interior(ref Thread.CurrentThread, Array.copy arr)   
-      | Leaf(ot, arr) -> Leaf(ref Thread.CurrentThread, Array.copy arr)   
-
-
-   let editableTail (tail: 'T[]) : 'T[] = 
-      let editable = newNodeArray()
-      Array.Copy(tail, editable, tail.Length)
-      editable
-
-
    // Returns the array that contains the element at the specified index
    let leafArrayFor (index: int, count: int, shift: int, root: Node<'T>, tail: 'T[]) : 'T[] = 
       if index >= tailOffset count then 
@@ -294,6 +282,11 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
       t.ToPersistent()
 
 
+   member this.Iterate (f: 'T -> unit)  = 
+      for item in this do 
+         f item
+
+
    interface IEnumerable with
       member this.GetEnumerator() = 
          this.CreateEnumerator(0, count) :> IEnumerator
@@ -384,6 +377,17 @@ and internal TransientVector<'T> (count:int, shift: int, root: Node<'T>, tail: '
    
    static let emptyInteriorNode : Node<'T> = Interior(noEditThread, newNodeArray())
 
+   static let editableNode (node: Node<'T>) : Node<'T> =
+      match node with
+      | Interior(ot, arr) -> Interior(ref Thread.CurrentThread, Array.copy arr)   
+      | Leaf(ot, arr) -> Leaf(ref Thread.CurrentThread, Array.copy arr)   
+
+
+   static let editableTail (tail: 'T[]) : 'T[] = 
+      let editable = newNodeArray()
+      Array.Copy(tail, editable, tail.Length)
+      editable
+
    let mutable count = count
    let mutable shift = shift
    let mutable root = root
@@ -466,6 +470,10 @@ module Vector =
    [<CompiledName("Empty")>]
    let empty<'T> = Vector<'T>.Empty
 
+   [<CompiledName("Singleton")>]
+   let inline singleton (item:'T) =
+      Vector<'T> (Array.singleton item :> ICollection<'T>)
+
    [<CompiledName("OfSeq")>]
    let inline ofSeq (items: seq<'T>) = 
       Vector<'T> (items)
@@ -497,3 +505,20 @@ module Vector =
    [<CompiledName("Map")>]
    let inline map (f: 'T -> 'U) (vector: Vector<'T>) = 
       vector.Map f
+
+   [<CompiledName("Iterate")>]
+   let iter (f: 'T -> unit) (vector: Vector<'T>) = 
+      vector.Iterate f
+
+   [<CompiledName("ToSeq")>]
+   let inline toSeq (vector: Vector<'T>)  =
+      vector :> seq<'T>
+
+   [<CompiledName("ToArray")>]
+   let toArray (vector: Vector<'T>) =   
+      let arr = Array.zeroCreate vector.Count
+      let mutable i = 0
+      vector |> iter (fun item ->
+         arr.[i] <- item
+         i <- i + 1)
+      arr

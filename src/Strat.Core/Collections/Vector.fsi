@@ -52,6 +52,10 @@ module Vector =
    [<CompiledName("Empty")>]
    val empty<'T> : Vector<'T>
 
+   /// Returns a new vector containing the specified item.
+   [<CompiledName("Singleton")>]
+   val inline singleton: item:'T -> Vector<'T>
+
    /// O(N): Returns a new vector containing the items in the specified sequence.
    [<CompiledName("OfSeq")>]
    val inline ofSeq: items:seq<'T> -> Vector<'T>
@@ -84,3 +88,15 @@ module Vector =
    /// of the vector.
    [<CompiledName("Map")>]
    val inline map: f:('T -> 'U) -> vector:Vector<'T> -> Vector<'U>
+
+   /// O(N): Applies the specified function to each element in the vector.
+   [<CompiledName("Iterate")>]
+   val iter: f:('T -> unit) -> vector:Vector<'T> -> unit
+
+   /// O(1): Views the specified vector as a sequence.
+   [<CompiledName("ToSeq")>]
+   val inline toSeq: vector:Vector<'T> -> seq<'T>
+
+   /// O(N): Creates a new array containing the elements in the specfied vector.
+   [<CompiledName("ToArray")>]
+   val toArray: vector:Vector<'T> -> 'T[]
