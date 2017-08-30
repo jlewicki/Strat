@@ -540,6 +540,15 @@ module Vector =
       Trie.iteri (iteriFiltered, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
       filteredV.ToPersistent()
 
+   [<CompiledName("Fold")>]
+   let fold (f: 'State -> 'T -> 'State) (initial: 'State) (v: Vector<'T>) =
+      let mutable state = initial
+      let iterFold _ item = 
+         state <- f state item
+         true
+      Trie.iteri (iterFold, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      state
+
    [<CompiledName("Iterate")>]
    let iter (f: 'T -> unit) (v: Vector<'T>) =
       Trie.iter (f, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)

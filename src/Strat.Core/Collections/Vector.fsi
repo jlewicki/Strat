@@ -94,6 +94,13 @@ module Vector =
    [<CompiledName("Filter")>]
    val filter: predicate:('T -> bool) -> vector:Vector<'T> -> Vector<'T>
 
+   /// Applies the specified function to each element of the vector, threading an accumulator argument through the
+   /// computation. The fold function takes the second argument, and applies the function f to it and the first element
+   /// of the list. Then, it feeds this result into the function f along with the second element, and so on. It returns
+   /// the final result. 
+   [<CompiledName("Fold")>]
+   val fold: f:('State -> 'T -> 'State) -> initial:'State -> v:Vector<'T> -> 'State
+
    /// O(N): Applies the specified function to each element in the vector.
    [<CompiledName("Iterate")>]
    val iter: f:('T -> unit) -> vector:Vector<'T> -> unit

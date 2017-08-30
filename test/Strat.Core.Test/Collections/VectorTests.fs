@@ -158,14 +158,28 @@ module Vector =
          Assert.Equal( largeArray.Length / 2, filteredV.Count)
 
 
+   module Fold = 
+      [<Fact>]
+      let should_apply_fold_to_each_element_and_return_final_state() = 
+         let v = Vector.ofArray largeArray
+         let mutable nextI = 0
+         let foldSum total item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1 
+            total + item
+         let total = v |> Vector.fold foldSum 0
+         Assert.Equal (Array.sum largeArray, total)
+
+
    module Iter = 
       [<Fact>]
       let should_apply_function_to_each_item_in_vector() = 
          let v = Vector.ofArray largeArray
          let mutable nextI = 0
-         v |> Vector.iter (fun item ->
+         let iterAction item =
             Assert.Equal (v.[nextI], item) 
-            nextI <- nextI + 1 )
+            nextI <- nextI + 1
+         v |> Vector.iter iterAction
          Assert.Equal (v.Count, nextI)
 
 
@@ -174,10 +188,11 @@ module Vector =
       let should_apply_function_to_each_item_in_vector() = 
          let v = Vector.ofArray largeArray
          let mutable nextI = 0
-         v |> Vector.iteri (fun i item ->
+         let iteriAction i item =
             Assert.Equal (nextI, i)
             Assert.Equal (v.[nextI], item) 
-            nextI <- nextI + 1 )
+            nextI <- nextI + 1
+         v |> Vector.iteri iteriAction
          Assert.Equal (v.Count, nextI)
 
 
