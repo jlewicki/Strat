@@ -36,7 +36,7 @@ module Seq =
 
    /// Returns a new sequence containing only the elements of the sequence for which the given predicate returns false.
    let exceptWhere f items = 
-      items |> Seq.filter (fun item -> not(f item))
+      items |> Seq.filter (f >> not)
 
 
    /// Returns a new sequence with the specified item excluded.  If the item exists more than once in the sequence, all
@@ -122,7 +122,7 @@ module List =
 
    /// Returns a new list containing only the elements of the list for which the given predicate returns false.
    let exceptWhere f items = 
-      items |> List.filter (fun item -> not(f item))
+      items |> List.filter (f >> not)
 
 
    /// Returns a new list with the specified item excluded.  If the item exists more than once in the sequence, only
