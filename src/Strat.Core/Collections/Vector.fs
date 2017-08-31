@@ -340,6 +340,16 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
          this.CreateEnumerator(0, count)
 
 
+   interface IReadOnlyCollection<'T> with
+      member this.Count = 
+         this.Count
+
+
+   interface IReadOnlyList<'T> with
+      member this.Item
+         with get (index: int) = this.[index]
+
+
    member internal this.Root = root
    member internal this.Shift = shift
    member internal this.Tail = tail

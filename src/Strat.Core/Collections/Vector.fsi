@@ -4,12 +4,21 @@ open System.Collections
 open System.Collections.Generic
 
 
+/// <summary>
+/// A vector is a persistent collection that provides fast indexed access to elements in the collection, as well as
+/// efficient operations to add and remove elements in the array. In general, these operations are O(lg32N), which in
+/// practice is effectively constant time.
+/// <para>
+/// Vector are implemented as bit partitioned tries, and are closely modeled on the PersistentVector implementation that
+/// can be found in Clojure.</para>
+/// </summary>
 [<Class>]
 [<Sealed>]
 type Vector<'T> =
 
    interface IEnumerable
    interface IEnumerable<'T>
+   interface IReadOnlyList<'T>
    
    /// Returns an empty vector.
    static member Empty: Vector<'T>
@@ -26,21 +35,17 @@ type Vector<'T> =
    /// O(1). Returns a value indicating if this vector is empty.
    member IsEmpty: bool
 
-   /// O(1). Returns the item at the specified 0-based index. Throws an exception if the index is out of range.
+   /// O(lg32N). Returns the item at the specified 0-based index. Throws an exception if the index is out of range.
    member Item: i:int -> 'T with get
 
-   /// Returns a new vector by replacing the item at the specified index with the specfied item.
+   /// O(lg32N). Returns a new vector by replacing the item at the specified index with the specfied item.
    member Set: index:int * item:'T ->  Vector<'T>
 
-   /// Returns a new vector by adding the specified item at the end of the vector.
+   /// O(lg32N). Returns a new vector by adding the specified item at the end of the vector.
    member Add: item:'T -> Vector<'T>
 
-   /// Returns the last item in the vector, and new item with the last item removed.
+   /// O(lg32N). Returns the last item in the vector, and new item with the last item removed.
    member RemoveLast: unit -> 'T * Vector<'T>
-
-   /// O(N): Returns a new vector whose elements are the results of applying the given function to each of the elements
-   /// of the vector.
-   member Map: f:('T -> 'U) -> Vector<'U>
 
 
 /// Functional operators for <c>Vector<_></c>.
@@ -52,7 +57,7 @@ module Vector =
    [<CompiledName("Empty")>]
    val empty<'T> : Vector<'T>
 
-   /// Returns a new vector containing the specified item.
+   /// O(1). Returns a new vector containing the specified item.
    [<CompiledName("Singleton")>]
    val inline singleton: item:'T -> Vector<'T>
 
@@ -73,19 +78,19 @@ module Vector =
    [<CompiledName("Length")>]
    val inline length: vector:Vector<'T> -> int
 
-   /// O(1): Returns a value indicating if the vector is empty.
+   /// O(1). Returns a value indicating if the vector is empty.
    [<CompiledName("IsEmpty")>]
    val inline isEmpty: vector:Vector<'T> -> bool
 
-   /// O(1). Returns the item at the specified 0-based index. Throws an exception if the index is out of range.
+   /// O(lg32N). Returns the item at the specified 0-based index. Throws an exception if the index is out of range.
    [<CompiledName("Get")>]
    val inline get: index:int -> vector:Vector<'T> -> 'T
 
-   /// Returns a new vector by replacing the item at the specified index with the specified item.
+   /// O(lg32N). Returns a new vector by replacing the item at the specified index with the specified item.
    [<CompiledName("Set")>]
    val inline set: index:int -> item:'T -> Vector<'T> -> Vector<'T>
 
-   /// Returns the last item in the vector, and new item with the last item removed.
+   /// O(lg32N). Returns the last item in the vector, and new item with the last item removed.
    [<CompiledName("RemoveLast")>]
    val inline removeLast: vector:Vector<'T> -> 'T * Vector<'T>
 
