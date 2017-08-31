@@ -138,6 +138,13 @@ module Vector =
             currentIndex <- currentIndex + 1 
 
 
+   module Init = 
+      [<Fact>]
+      let should_call_function_to_create_each_element() = 
+         let v = Vector.init 5 (fun i -> i * 2)
+         Assert.Equal ([|0; 2; 4; 6; 8;|], v)
+
+
    module MapIndexed = 
       [<Fact>]
       let should_apply_mapping_to_each_item_in_vector() = 
