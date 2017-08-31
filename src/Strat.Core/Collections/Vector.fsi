@@ -38,6 +38,12 @@ type Vector<'T> =
    /// O(lg32N). Returns the item at the specified 0-based index. Throws an exception if the index is out of range.
    member Item: i:int -> 'T with get
 
+   /// O(1). Returns the last item in the vector. Throws an exception if the index is out of range.
+   member Last: 'T
+
+   /// O(1). Returns the last item in the vector, or None if the vector is empty.
+   member TryLast: option<'T>
+
    /// O(lg32N). Returns a new vector by replacing the item at the specified index with the specfied item.
    member Set: index:int * item:'T ->  Vector<'T>
 
@@ -85,6 +91,14 @@ module Vector =
    /// O(lg32N). Returns the item at the specified 0-based index. Throws an exception if the index is out of range.
    [<CompiledName("Get")>]
    val inline get: index:int -> vector:Vector<'T> -> 'T
+
+   /// O(1). Returns the last item in the vector, or None if the vector is empty.
+   [<CompiledName("TryLast")>]
+   val inline tryLast: vector:Vector<'T> -> option<'T>
+
+   /// O(1). Returns the last item in the vector. Throws an exception if the index is out of range.
+   [<CompiledName("Last")>]
+   val inline last: vector:Vector<'T> -> 'T
 
    /// O(lg32N). Returns a new vector by replacing the item at the specified index with the specified item.
    [<CompiledName("Set")>]

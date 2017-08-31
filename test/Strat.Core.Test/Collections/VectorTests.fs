@@ -58,6 +58,32 @@ module Vector =
             pv.[2] |> ignore)) |> ignore
 
 
+   module Last = 
+      [<Fact>]
+      let should_return_last_element_in_vector() = 
+         let v = Vector.ofArray largeArray
+         let last = v.Last
+         Assert.Equal (largeArray.[largeArray.Length - 1], last)
+
+      [<Fact>]
+      let should_throw_if_vector_is_empty() = 
+         Assert.Throws<KeyNotFoundException>(Action(fun () -> 
+            Vector.empty.Last |> ignore )) |> ignore
+
+
+   module TryLast = 
+      [<Fact>]
+      let should_return_last_element_in_vector() = 
+         let v = Vector.ofArray largeArray
+         let last = v.TryLast
+         Assert.True last.IsSome
+         Assert.Equal (largeArray.[largeArray.Length - 1], last.Value)
+
+      [<Fact>]
+      let should_throw_if_vector_is_empty() = 
+         Assert.True (Vector.empty |> Vector.tryLast |> Option.isNone)
+
+
    module Set = 
       [<Fact>]
       let should_set_item_at_index() = 

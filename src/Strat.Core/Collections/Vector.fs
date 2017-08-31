@@ -8,7 +8,7 @@ open System.Threading
 
 // Persistent vector, implemented as bit-partitioned vector trie.
 //
-// This implementation is very similar to Clojure's PersistentVector, with an additional tweak strongly-typed arrays
+// This implementation is very similar to Clojure's PersistentVector, with an additional tweak of strongly-typed arrays
 // in leaf nodes, to avoid boxing overhead.
 //
 // Some helpful background links:
@@ -194,7 +194,8 @@ open Trie
 
 // count: number of elements stored in the vector.
 // shift: (Depth of tree - 1) * Bits per level. In other words, this is the total number of bits a vector index will 
-///       have to be shifted to get to the leaf value.
+///       have to be shifted to get to the leaf value.  TOOD: can we get rid of this now that we have Interior and Leaf
+//        nodes?
 // root: The root node of the 'tree part' of the vector.
 // tail: 'Tail part' of the vector. Logically, the tail part is the rightmost leaf in the tree. Keeping a 
 //       direct reference to this leaf array in the vector, instead of in the 'tree part', allows some important
@@ -257,6 +258,18 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
       else
          // Index points to an item in the tree part, so update the tree
          new Vector<'T> (count, shift, (setTree shift root index item), tail)
+
+
+   member this.Last
+      with get() = 
+         match this.TryLast with
+         | Some item -> item
+         | None -> raise <| new KeyNotFoundException()
+         
+
+   member this.TryLast = 
+      if this.IsEmpty then None
+      else Some this.[count - 1]
 
 
    member this.Add (item: 'T) = 
@@ -550,28 +563,38 @@ module Vector =
 
 
    [<CompiledName("Length")>]
-   let inline length (vector: Vector<_>) = 
-      vector.Count
+   let inline length (v: Vector<_>) = 
+      v.Count
 
 
    [<CompiledName("IsEmpty")>]
-   let inline isEmpty (vector: Vector<_>) = 
-      vector.IsEmpty
+   let inline isEmpty (v: Vector<_>) = 
+      v.IsEmpty
 
 
    [<CompiledName("Get")>]
-   let inline get (index: int) (vector: Vector<'T>) = 
-      vector.[index]
+   let inline get (index: int) (v: Vector<'T>) = 
+      v.[index]
+
+
+   [<CompiledName("Last")>]
+   let inline last (v: Vector<'T>) =
+      v.Last
+
+
+   [<CompiledName("TryLast")>]
+   let inline tryLast (v: Vector<'T>) =
+      v.TryLast
 
 
    [<CompiledName("Set")>]
-   let inline set (index: int) (item:'T) (vector: Vector<'T>) = 
-      vector.Set(index, item)
+   let inline set (index: int) (item:'T) (v: Vector<'T>) = 
+      v.Set(index, item)
 
 
    [<CompiledName("RemoveLast")>]
-   let inline removeLast (vector:Vector<'T>) =
-      vector.RemoveLast()
+   let inline removeLast (v: Vector<'T>) =
+      v.RemoveLast()
 
 
    [<CompiledName("MapIndexed")>]
@@ -617,7 +640,7 @@ module Vector =
 
 
    [<CompiledName("FoldBack")>]
-   let foldBack (f:'T -> 'State -> 'State) (v:Vector<'T>) (initial: 'State) =
+   let foldBack (f:'T -> 'State -> 'State) (v: Vector<'T>) (initial: 'State) =
       let mutable state = initial
       let iterFold (_:int) item = 
          state <- f item state
@@ -663,7 +686,7 @@ module Vector =
 
 
    [<CompiledName("TryFind")>]
-   let tryFind  (predicate:'T -> bool) (v:Vector<'T>) =
+   let tryFind  (predicate: 'T -> bool) (v: Vector<'T>) =
       let mutable matched = None
       let iteriFind (_:int) item = 
          if predicate item then
@@ -676,14 +699,14 @@ module Vector =
 
 
    [<CompiledName("Find")>]
-   let find (predicate:'T -> bool) (v:Vector<'T>) =
+   let find (predicate: 'T -> bool) (v: Vector<'T>) =
       match tryFind predicate v with
       | Some s -> s
       | None -> raise <| new KeyNotFoundException()
 
 
    [<CompiledName("TryFindIndex")>]
-   let tryFindIndex (predicate:'T -> bool) (v:Vector<'T>) =
+   let tryFindIndex (predicate: 'T -> bool) (v: Vector<'T>) =
       let mutable matched = None
       let iteriFind (index:int) item = 
          if predicate item then
@@ -696,14 +719,14 @@ module Vector =
 
    
    [<CompiledName("FindIndex")>]
-   let findIndex (predicate:'T -> bool) (v:Vector<'T>) =
+   let findIndex (predicate: 'T -> bool) (v: Vector<'T>) =
       match tryFindIndex predicate v with
       | Some s -> s
       | None -> raise <| new KeyNotFoundException()
 
 
    [<CompiledName("TryPick")>]
-   let tryPick (f:'T -> 'U option) (v:Vector<'T>) = 
+   let tryPick (f: 'T -> 'U option) (v: Vector<'T>) = 
       let mutable matched = None
       let iteriPick (_:int) item = 
          match f item with
@@ -717,14 +740,14 @@ module Vector =
 
 
    [<CompiledName("Pick")>]
-   let pick (f:'T -> 'U option) (v:Vector<'T>) = 
+   let pick (f: 'T -> 'U option) (v: Vector<'T>) = 
       match tryPick f v with
       | Some v -> v
       | None -> raise <| new KeyNotFoundException()
 
 
    [<CompiledName("Zip")>]
-   let zip (v1:Vector<'T>) (v2:Vector<'U>) =
+   let zip (v1: Vector<'T>) (v2: Vector<'U>) =
       if v1.Count <> v2.Count then
          let msg = sprintf "Count of items %d in vector1 does not match number of items %d in vector2" v1.Count v2.Count
          raise <| new ArgumentException (msg)
@@ -737,7 +760,7 @@ module Vector =
 
 
    [<CompiledName("ForAll")>]
-   let forall (predicate:'T -> bool) (v:Vector<'T>) =
+   let forall (predicate: 'T -> bool) (v: Vector<'T>) =
       let mutable matched = true
       let iteriForAll (_:int) item = 
          if predicate item then 
@@ -763,8 +786,8 @@ module Vector =
 
 
    [<CompiledName("ToSeq")>]
-   let inline toSeq (vector: Vector<'T>)  =
-      vector :> seq<'T>
+   let inline toSeq (v: Vector<'T>)  =
+      v :> seq<'T>
 
 
    [<CompiledName("ToArray")>]
