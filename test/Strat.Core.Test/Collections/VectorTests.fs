@@ -160,7 +160,7 @@ module Vector =
 
    module Fold = 
       [<Fact>]
-      let should_apply_fold_to_each_element_and_return_final_state() = 
+      let should_apply_fold_to_each_item_and_return_final_state() = 
          let v = Vector.ofArray largeArray
          let mutable nextI = 0
          let foldSum total item = 
@@ -169,6 +169,117 @@ module Vector =
             total + item
          let total = v |> Vector.fold foldSum 0
          Assert.Equal (Array.sum largeArray, total)
+
+
+   module FoldBack = 
+      [<Fact>]
+      let should_apply_fold_to_each_item_from_back_and_return_final_state() =
+         let v = Vector.ofArray [|1; 2; 3|]
+         let result = Vector.foldBack (fun acc elem -> acc - elem) v 0
+         Assert.Equal (2, result)
+
+
+   module Collect = 
+      [<Fact>]
+      let should_collect_each_mapped_vector() = 
+         let v = Vector.ofArray [|1; 2; 3|]
+         let map item = Vector.ofArray (Array.replicate item item)
+         let collectedV = Vector.collect map v
+         Assert.Equal ([1; 2; 2; 3; 3; 3], collectedV)
+
+
+   module Choose = 
+      [<Fact>]
+      let should_apply_f_to_each_item_and_include_some_values() = 
+         let v = Vector.ofArray <| Array.init 64 id
+         let chooser item = if item = 0 ||  item = 63 then Some (item * 2) else None
+         let chosenV = v |> Vector.choose chooser
+         Assert.Equal (2, chosenV.Count)
+         Assert.Equal ([0; 126], chosenV)
+
+
+   module Reverse = 
+      [<Fact>]
+      let should_reverse_items_in_vector() =
+         let v = Vector.ofArray largeArray
+         let reversedV = Vector.rev v
+         Assert.Equal(v.Count, reversedV.Count)
+
+
+   module TryFind = 
+      [<Fact>]
+      let should_return_item_that_matches_predicate() =
+         let pv = Vector.ofArray largeArray
+         let target = largeArray.[largeArray.Length / 2]
+         let matched = pv |> Vector.tryFind (fun item -> item = target)
+         Assert.True matched.IsSome
+         Assert.Equal(target, matched.Value)
+
+      [<Fact>]
+      let should_return_none_if_no_items_match_predicate() = 
+         let pv = Vector.ofArray largeArray
+         let matched = pv |> Vector.tryFind (fun _ -> false)
+         Assert.True matched.IsNone
+
+
+   module Find = 
+      [<Fact>]
+      let should_return_item_that_matches_predicate() =
+         let pv = Vector.ofArray largeArray
+         let target = largeArray.[largeArray.Length / 2]
+         let matched = pv |> Vector.find (fun item -> item = target)
+         Assert.Equal(target, matched)
+
+      [<Fact>]
+      let should_throw_if_no_items_match_predicate() = 
+         Assert.Throws<KeyNotFoundException>(Action(fun () -> 
+            Vector.singleton 1 |> Vector.find (fun _ -> false) |> ignore)) |> ignore
+
+
+   module TryFindIndex = 
+      [<Fact>]
+      let should_return_item_that_matches_predicate() =
+         let pv = Vector.ofArray largeArray
+         let targetIndex = largeArray.Length / 2
+         let target = largeArray.[largeArray.Length / 2]
+         let matchedIndex = pv |> Vector.tryFindIndex (fun item -> item = target)
+         Assert.True matchedIndex.IsSome
+         Assert.Equal(targetIndex, matchedIndex.Value)
+
+      [<Fact>]
+      let should_throw_if_no_items_match_predicate() = 
+         let pv = Vector.ofArray largeArray
+         let matched = pv |> Vector.tryFindIndex (fun _ -> false)
+         Assert.True matched.IsNone
+
+
+   module FindIndex = 
+      [<Fact>]
+      let should_return_item_that_matches_predicate() =
+         let pv = Vector.ofArray largeArray
+         let targetIndex = largeArray.Length / 2
+         let target = largeArray.[largeArray.Length / 2]
+         let matchedIndex = pv |> Vector.findIndex (fun item -> item = target)
+         Assert.Equal(targetIndex, matchedIndex)
+
+      [<Fact>]
+      let should_throw_if_no_items_match_predicate() = 
+         Assert.Throws<KeyNotFoundException>(Action(fun () -> 
+            Vector.singleton 1 |> Vector.findIndex (fun _ -> false) |> ignore)) |> ignore
+
+
+   module ForAll = 
+      [<Fact>]
+      let should_return_true_when_all_items_match() =
+         let pv = Vector.ofArray [|3;4;7;6;5;1|]
+         let allGreaterThan0 = pv |> Vector.forall (fun i -> i > 0)
+         Assert.True allGreaterThan0
+
+      [<Fact>]
+      let should_return_false_when_all_items_do_not_match() =
+         let pv = Vector.ofArray [|3;4;7;6;5;-1|]
+         let allGreaterThan0 = pv |> Vector.forall (fun i -> i > 0)
+         Assert.False allGreaterThan0
 
 
    module Iter = 

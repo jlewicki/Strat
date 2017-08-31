@@ -47,7 +47,7 @@ module Trie =
 
    let noEditThread : Ref<Thread> = ref null
    let inline nullNode() = Unchecked.defaultof<Node<'T>>
-   let isNullNode (node: Node<'T>) = 
+   let inline isNullNode (node: Node<'T>) = 
       Object.ReferenceEquals(node, nullNode())
 
    // Returns the total number of elements in the 'tree part' of the vector (as opposed to the 'tail part'). In other 
@@ -145,11 +145,13 @@ module Trie =
          invalidOp "Unexpected leaf nodes"
 
 
-   // Applies the function to each element in the list, with index.  Iteration continues while the function returns 
+   /// Applies the function to each element in the list, with index. Iteration continues while the function returns 
    /// true.
    let iteri (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
       let mutable i = startIdx
-      let mutable baseI = startIdx - (startIdx % Bits)
+      // Items are stored in arrays of length NodeArraySize.  baseI is the vector index for the
+      // first element in the leaf array that stores element i.
+      let mutable baseI = startIdx - (startIdx % NodeArraySize)
       let mutable leafArray = leafArrayFor (startIdx, count, shift, root, tail) 
       while i < endIdxExclusive do
          if (i - baseI) = NodeArraySize then
@@ -158,6 +160,26 @@ module Trie =
             baseI <- baseI + NodeArraySize
          let cont = f i leafArray.[arrayIndex i]
          i <- if cont then i + 1 else endIdxExclusive
+
+
+   /// Applies the function to each element in the list, with index, in reverse order. Iteration continues while the
+   /// function returns true.
+   let iteriRev (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
+      let mutable i = endIdxExclusive - 1
+      let mutable leafArray = leafArrayFor (i, count, shift, root, tail)
+      // Items are stored in arrays of length NodeArraySize.  baseI is the vector index for the
+      // first element in the leaf array that stores element i. The starting point for the iteration
+      // may be in the tail array, so we need to take that into account.
+      let mutable baseI = 
+            if Object.ReferenceEquals(leafArray, tail) then i - tail.Length
+            else startIdx - (startIdx % NodeArraySize)
+      while i >= startIdx do
+         if i <= baseI then
+            // We've iterated thrugh the current leaf array, so get the previous one
+            leafArray <- leafArrayFor (i, count, shift, root, tail)
+            baseI <- baseI - NodeArraySize
+         let cont = f i leafArray.[arrayIndex i]
+         i <- if cont then i - 1 else startIdx - 1
 
 
    // Applies the function to each element in the list, with index
@@ -170,11 +192,9 @@ module Trie =
 
 open Trie
 
-// Persistent vector implementation.
-//
 // count: number of elements stored in the vector.
-// shift: (Depth of tree - 1) * Bits per level. In other words, this is the total number of bits a
-//        vector index will have to be shifted to get to the leaf value
+// shift: (Depth of tree - 1) * Bits per level. In other words, this is the total number of bits a vector index will 
+///       have to be shifted to get to the leaf value.
 // root: The root node of the 'tree part' of the vector.
 // tail: 'Tail part' of the vector. Logically, the tail part is the rightmost leaf in the tree. Keeping a 
 //       direct reference to this leaf array in the vector, instead of in the 'tree part', allows some important
@@ -493,46 +513,56 @@ module Vector =
    [<CompiledName("Empty")>]
    let empty<'T> = Vector<'T>.Empty
 
+
    [<CompiledName("Singleton")>]
    let inline singleton (item:'T) =
       Vector<'T> (Array.singleton item :> ICollection<'T>)
+
 
    [<CompiledName("OfSeq")>]
    let inline ofSeq (items: seq<'T>) = 
       Vector<'T> (items)
 
+
    [<CompiledName("OfArray")>]
    let inline ofArray (items: 'T[] ) = 
       Vector<'T> (items :> ICollection<'T>)
+
 
    [<CompiledName("Length")>]
    let inline length (vector: Vector<_>) = 
       vector.Count
 
+
    [<CompiledName("IsEmpty")>]
    let inline isEmpty (vector: Vector<_>) = 
       vector.IsEmpty
+
 
    [<CompiledName("Get")>]
    let inline get (index: int) (vector: Vector<'T>) = 
       vector.[index]
 
+
    [<CompiledName("Set")>]
    let inline set (index: int) (item:'T) (vector: Vector<'T>) = 
       vector.Set(index, item)
+
 
    [<CompiledName("RemoveLast")>]
    let inline removeLast (vector:Vector<'T>) =
       vector.RemoveLast()
 
+
    [<CompiledName("Map")>]
    let inline map (f: 'T -> 'U) (vector: Vector<'T>) = 
       vector.Map f
 
+
    [<CompiledName("Filter")>]
    let filter (predicate: 'T -> bool) (v: Vector<'T>) =
       let filteredV = new TransientVector<'T> ()
-      let iteriFiltered _ item = 
+      let iteriFiltered (_:int) item = 
          let included = predicate item
          if included then 
             filteredV.Add item |> ignore
@@ -540,18 +570,120 @@ module Vector =
       Trie.iteri (iteriFiltered, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
       filteredV.ToPersistent()
 
+
    [<CompiledName("Fold")>]
    let fold (f: 'State -> 'T -> 'State) (initial: 'State) (v: Vector<'T>) =
       let mutable state = initial
-      let iterFold _ item = 
+      let iterFold (_:int) item = 
          state <- f state item
          true
       Trie.iteri (iterFold, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
       state
 
+
+   [<CompiledName("FoldBack")>]
+   let foldBack (f:'T -> 'State -> 'State) (v:Vector<'T>) (initial: 'State) =
+      let mutable state = initial
+      let iterFold (_:int) item = 
+         state <- f item state
+         true
+      Trie.iteriRev (iterFold, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      state
+
+
+   [<CompiledName("Collect")>]
+   let collect (f: 'T -> Vector<'U>) (v: Vector<'T>) =
+      let resultV = new TransientVector<'U>()
+      let iterCollect (_:int) item =
+         let nextV = f item
+         let iterAdd (_:int) nextItem = 
+            resultV.Add nextItem |> ignore
+            true
+         Trie.iteri (iterAdd, 0, nextV.Count, nextV.Count, nextV.Shift, nextV.Root, nextV.Tail)   
+         true
+      Trie.iteri (iterCollect, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      resultV.ToPersistent()
+
+
+   [<CompiledName("Choose")>]
+   let choose (f: 'T -> 'U option) (v: Vector<'T>) =
+      let resultV = new TransientVector<'U>()
+      let iterChoose (_:int) item =
+         match f item with
+         | Some v -> resultV.Add v |> ignore
+         | _ -> ()
+         true
+      Trie.iteri (iterChoose, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      resultV.ToPersistent()
+
+
+   [<CompiledName("Reverse")>]
+   let rev (v: Vector<'T>) = 
+      let reversed = new TransientVector<'T> ()
+      let iteriReverse (_:int) item = 
+         reversed.Add item |> ignore
+         true
+      Trie.iteriRev (iteriReverse, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      reversed.ToPersistent()
+
+
+   [<CompiledName("TryFind")>]
+   let tryFind  (predicate:'T -> bool) (v:Vector<'T>) =
+      let mutable matched = None
+      let iteriFind (_:int) item = 
+         if predicate item then
+            matched <- Some item
+            false
+         else
+            true
+      Trie.iteri (iteriFind, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      matched
+
+
+   [<CompiledName("Find")>]
+   let find (predicate:'T -> bool) (v:Vector<'T>) =
+      match tryFind predicate v with
+      | Some s -> s
+      | None -> raise <| new KeyNotFoundException()
+
+
+   [<CompiledName("TryFindIndex")>]
+   let tryFindIndex (predicate:'T -> bool) (v:Vector<'T>) =
+      let mutable matched = None
+      let iteriFind (index:int) item = 
+         if predicate item then
+            matched <- Some index
+            false
+         else
+            true
+      Trie.iteri (iteriFind, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      matched
+
+   
+   [<CompiledName("FindIndex")>]
+   let findIndex (predicate:'T -> bool) (v:Vector<'T>) =
+      match tryFindIndex predicate v with
+      | Some s -> s
+      | None -> raise <| new KeyNotFoundException()
+
+
+   [<CompiledName("ForAll")>]
+   let forall (predicate:'T -> bool) (v:Vector<'T>) =
+      let mutable matched = true
+      let iteriForAll (_:int) item = 
+         if predicate item then 
+            true
+         else
+            matched <- false
+            false
+      Trie.iteri (iteriForAll, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      matched
+
+
    [<CompiledName("Iterate")>]
    let iter (f: 'T -> unit) (v: Vector<'T>) =
       Trie.iter (f, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+
 
    [<CompiledName("IterateIndexed")>]
    let iteri (f: int -> 'T -> unit) (v: Vector<'T>) =
@@ -560,9 +692,11 @@ module Vector =
          true
       Trie.iteri (iteriAll, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
 
+
    [<CompiledName("ToSeq")>]
    let inline toSeq (vector: Vector<'T>)  =
       vector :> seq<'T>
+
 
    [<CompiledName("ToArray")>]
    let toArray (vector: Vector<'T>) =   
