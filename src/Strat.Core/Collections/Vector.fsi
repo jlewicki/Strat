@@ -64,6 +64,11 @@ module Vector =
    [<CompiledName("OfArray")>]
    val inline ofArray: items:array<'T> -> Vector<'T>
 
+   /// O(N). Returns a new a vector with the specified nunber of items, using the specified function to create an item
+   /// for each index on the vector.
+   [<CompiledName("Init")>]
+   val init : count:int -> f:(int -> 'T) -> Vector<'T>
+
    /// O(1): Returns the number of items in the vector.
    [<CompiledName("Length")>]
    val inline length: vector:Vector<'T> -> int
@@ -84,24 +89,30 @@ module Vector =
    [<CompiledName("RemoveLast")>]
    val inline removeLast: vector:Vector<'T> -> 'T * Vector<'T>
 
+   /// O(N). Returns a new vector whose elements are the results of applying the specified function to each of the
+   /// elements of the vector. The integer index passed to the function indicates the index of element being
+   /// transformed.
+   [<CompiledName("MapIndexed")>]
+   val mapi: f:(int -> 'T -> 'U) -> vector:Vector<'T> -> Vector<'U>
+
    /// O(N): Returns a new vector whose elements are the results of applying the specified function to each of the
    /// elements of the vector.
    [<CompiledName("Map")>]
-   val inline map: f:('T -> 'U) -> vector:Vector<'T> -> Vector<'U>
+   val map: f:('T -> 'U) -> vector:Vector<'T> -> Vector<'U>
 
-   /// O(N): Returns a new vector containing only the elements of the vector for which the specified predicate returns
+   /// O(N). Returns a new vector containing only the elements of the vector for which the specified predicate returns
    /// true.
    [<CompiledName("Filter")>]
    val filter: predicate:('T -> bool) -> vector:Vector<'T> -> Vector<'T>
 
-   /// O(N): Applies the specified function to each element of the vector, threading an accumulator argument through the
+   /// O(N). Applies the specified function to each element of the vector, threading an accumulator argument through the
    /// computation. The fold function takes the second argument, and applies the function f to it and the first element
    /// of the list. Then, it feeds this result into the function f along with the second element, and so on. It returns
    /// the final result. 
    [<CompiledName("Fold")>]
    val fold: f:('State -> 'T -> 'State) -> initial:'State -> v:Vector<'T> -> 'State
 
-   /// O(N): Applies the specified function to each element of the vector, threading an accumulator argument through
+   /// O(N). Applies the specified function to each element of the vector, threading an accumulator argument through
    /// computation. If the input function is f and the elements are i0...iN then computes f i0 (...(f iN s)).
    [<CompiledName("FoldBack")>]
    val foldBack: f:('T -> 'State -> 'State) -> Vector<'T> -> 'State -> 'State
@@ -116,47 +127,61 @@ module Vector =
    [<CompiledName("Choose")>]
    val choose: f:('T -> 'U option) -> Vector<'T> -> Vector<'U>
 
-   /// O(N): Applies the specified function to each element in the vector.
+   /// O(N). Applies the specified function to each element in the vector.
    [<CompiledName("Iterate")>]
    val iter: f:('T -> unit) -> vector:Vector<'T> -> unit
 
-   /// O(N): Applies the specified function to each element of the vector. The integer passed to the function
-   // indicates the index of element.
+   /// O(N). Applies the specified function to each element of the vector. The integer passed to the function
+   /// indicates the index of element.
    [<CompiledName("IterateIndexed")>]
    val iteri: f:(int -> 'T -> unit) -> vector:Vector<'T> -> unit
 
-   /// O(N): Returns a new vector with the elements in reverse order.
+   /// O(N). Returns a new vector with the elements in reverse order.
    [<CompiledName("Reverse")>]
    val rev: v: Vector<'T> -> Vector<'T> 
 
-   /// O(N): Returns the first element for which the specified function returns true. Return None if no such element 
+   /// O(N). Returns the first element for which the specified function returns true. Return None if no such element 
    /// exists.
    [<CompiledName("TryFind")>]
    val tryFind: predicate:('T -> bool) -> vector:Vector<'T> -> option<'T>
 
-   /// O(N): Returns the first element for which the specified function returns true. Raises KeyNotFoundException if no 
+   /// O(N). Returns the first element for which the specified function returns true. Raises KeyNotFoundException if no 
    /// such element exists.
    [<CompiledName("Find")>]
    val find: predicate:('T -> bool) -> vector:Vector<'T> -> 'T
 
-   /// O(N): Returns the index of the first element in the array that satisfies the specified predicate. Return None if
+   /// O(N). Returns the index of the first element in the array that satisfies the specified predicate. Return None if
    /// no such element exists.
    [<CompiledName("TryFindIndex")>]
    val tryFindIndex: predicate:('T -> bool) -> vector:Vector<'T> -> option<int>
 
-   /// O(N): Returns the index of the first element in the vector that satisfies the specified predicate. Raises
+   /// O(N). Returns the index of the first element in the vector that satisfies the specified predicate. Raises
    /// KeyNotFoundException if none of the elements satisfy the predicate.
    [<CompiledName("FindIndex")>]
    val findIndex: predicate:('T -> bool) -> vector:Vector<'T> -> int
 
-   /// O(N): Returns a value indicating if all elements in the vector satisfy the given predicate.
+   /// O(N). Applies the specified function to successive elements, returning the first result where the function
+   /// returns Some. If the function does not return Some for any element, then None is returned.
+   [<CompiledName("TryPick")>]
+   val tryPick: f:('T -> 'U option) -> vector:Vector<'T> -> option<'U>
+
+   /// O(N). Applies the given function to successive elements, returning the first result where the function returns
+   /// Some. If the function never returns Some then KeyNotFoundException is raised.
+   [<CompiledName("Pick")>]
+   val pick: f:('T -> 'U option) -> vector:Vector<'T> -> 'U
+
+   /// O(N). Combines the two vectors into a vector of pairs. The two vectors must have equal lengths.
+   [<CompiledName("Zip")>]
+   val zip: vector1:Vector<'T> -> vector2:Vector<'U> -> Vector<'T * 'U>
+
+   /// O(N). Returns a value indicating if all elements in the vector satisfy the given predicate.
    [<CompiledName("ForAll")>]
    val forall: predicate:('T -> bool) -> vector:Vector<'T> -> bool
 
-   /// O(1): Views the specified vector as a sequence.
+   /// O(1). Views the specified vector as a sequence.
    [<CompiledName("ToSeq")>]
    val inline toSeq: vector:Vector<'T> -> seq<'T>
 
-   /// O(N): Creates a new array containing the elements in the specfied vector.
+   /// O(N). Creates a new array containing the elements in the specfied vector.
    [<CompiledName("ToArray")>]
    val toArray: vector:Vector<'T> -> 'T[]

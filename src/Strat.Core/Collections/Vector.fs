@@ -529,6 +529,16 @@ module Vector =
       Vector<'T> (items :> ICollection<'T>)
 
 
+   [<CompiledName("Init")>]
+   let init (count:int) (f:int -> 'T) =
+      let t = new TransientVector<'T>()
+      let mutable i = 0
+      while i < count do
+         t.Add (f i) |> ignore
+         i <- i + 1
+      t.ToPersistent()
+
+
    [<CompiledName("Length")>]
    let inline length (vector: Vector<_>) = 
       vector.Count
@@ -554,9 +564,24 @@ module Vector =
       vector.RemoveLast()
 
 
+   [<CompiledName("MapIndexed")>]
+   let mapi (f: int -> 'T -> 'U) (v: Vector<'T>) = 
+      let t = TransientVector<'U>()
+      let iteriMap idx item =
+         t.Add (f idx item) |> ignore
+         true
+      Trie.iteri (iteriMap, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      t.ToPersistent()
+
+
    [<CompiledName("Map")>]
-   let inline map (f: 'T -> 'U) (vector: Vector<'T>) = 
-      vector.Map f
+   let map (f: 'T -> 'U) (v: Vector<'T>) = 
+      let t = TransientVector<'U>()
+      let iteriMap (_:int) item =
+         t.Add (f item) |> ignore
+         true
+      Trie.iteri (iteriMap, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      t.ToPersistent()
 
 
    [<CompiledName("Filter")>]
@@ -665,6 +690,40 @@ module Vector =
       match tryFindIndex predicate v with
       | Some s -> s
       | None -> raise <| new KeyNotFoundException()
+
+
+   [<CompiledName("TryPick")>]
+   let tryPick (f:'T -> 'U option) (v:Vector<'T>) = 
+      let mutable matched = None
+      let iteriPick (_:int) item = 
+         match f item with
+         | Some(_) as s -> 
+            matched <- s
+            false
+         | None ->
+            true
+      Trie.iteri (iteriPick, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      matched
+
+
+   [<CompiledName("Pick")>]
+   let pick (f:'T -> 'U option) (v:Vector<'T>) = 
+      match tryPick f v with
+      | Some v -> v
+      | None -> raise <| new KeyNotFoundException()
+
+
+   [<CompiledName("Zip")>]
+   let zip (v1:Vector<'T>) (v2:Vector<'U>) =
+      if v1.Count <> v2.Count then
+         let msg = sprintf "Count of items %d in vector1 does not match number of items %d in vector2" v1.Count v2.Count
+         raise <| new ArgumentException (msg)
+      let pairs = new TransientVector<'T*'U>()
+      let i1 = (v1 :> IEnumerable<'T>).GetEnumerator()
+      let i2 = (v2 :> IEnumerable<'U>).GetEnumerator()
+      while i1.MoveNext() && i2.MoveNext() do 
+         pairs.Add (i1.Current, i2.Current) |> ignore
+      pairs.ToPersistent()
 
 
    [<CompiledName("ForAll")>]

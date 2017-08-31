@@ -138,6 +138,17 @@ module Vector =
             currentIndex <- currentIndex + 1 
 
 
+   module MapIndexed = 
+      [<Fact>]
+      let should_apply_mapping_to_each_item_in_vector() = 
+         let v = Vector.ofArray largeArray
+         let f (idx: int) (i: int) = i - idx
+         let mappedV = Vector.mapi f v
+         Assert.Equal (v.Count, mappedV.Count)
+         for i in [0 .. v.Count - 1] do
+            Assert.Equal (largeArray.[i] - i, mappedV.[i])
+
+
    module Map = 
       [<Fact>]
       let should_apply_mapping_to_each_item_in_vector() = 
@@ -267,6 +278,72 @@ module Vector =
          Assert.Throws<KeyNotFoundException>(Action(fun () -> 
             Vector.singleton 1 |> Vector.findIndex (fun _ -> false) |> ignore)) |> ignore
 
+
+   module TryPick = 
+      [<Fact>]
+      let should_return_first_some_returned_by_function() =
+         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let mutable pickCount = 0
+         let picker item = 
+            pickCount <- pickCount + 1
+            if item = 7 then Some("7") else None
+         let picked = pv |> Vector.tryPick picker
+         Assert.True picked.IsSome
+         Assert.Equal ("7", picked.Value)
+         Assert.Equal (3, pickCount)
+
+
+      [<Fact>]
+      let should_return_none_if_function_never_returns_some() =
+         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let mutable pickCount = 0
+         let picker item = 
+            pickCount <- pickCount + 1
+            None
+         let picked = pv |> Vector.tryPick picker
+         Assert.True picked.IsNone
+         Assert.Equal (pv.Count, pickCount)
+
+
+   module Pick = 
+      [<Fact>]
+      let should_return_first_some_returned_by_function() =
+         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let mutable pickCount = 0
+         let picker item = 
+            pickCount <- pickCount + 1
+            if item = 7 then Some("7") else None
+         let picked = pv |> Vector.pick picker
+         Assert.Equal ("7", picked)
+         Assert.Equal (3, pickCount)
+
+
+      [<Fact>]
+      let should_throw_if_function_never_returns_some() =
+         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let mutable pickCount = 0
+         let picker item = 
+            pickCount <- pickCount + 1
+            None
+         Assert.Throws<KeyNotFoundException>(Action(fun () -> 
+            pv |> Vector.pick picker |> ignore)) |> ignore    
+         Assert.Equal (pv.Count, pickCount)
+
+
+   module Zip = 
+      [<Fact>]
+      let should_return_pairs_of_items_in_both_vectors() =
+         let v1 = Vector.ofArray [|1;2;3;4;5|] 
+         let v2 = Vector.ofArray [|'1';'2';'3';'4';'5'|]
+         let zipped = Vector.zip v1 v2
+         Assert.Equal<int*char> ([|(1, '1');(2, '2');(3, '3');(4, '4');(5, '5');|], zipped)
+
+      [<Fact>]
+      let should_throw_if_vectors_have_different_lengths() = 
+         let v1 = Vector.ofArray [|1;2|] 
+         let v2 = Vector.ofArray [|'1';|]
+         Assert.Throws<ArgumentException>(Action(fun () -> 
+            Vector.zip v1 v2 |> ignore)) |> ignore    
 
    module ForAll = 
       [<Fact>]
