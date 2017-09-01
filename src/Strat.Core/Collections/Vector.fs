@@ -577,51 +577,6 @@ module Vector =
          t.ToPersistent()
 
 
-   [<CompiledName("Min")>]
-   let inline min (v: Vector<'T>) =
-      if v.IsEmpty then 
-         raise <| new ArgumentException("Can't call min on empty vector")
-      let mutable currentMin = v.Last
-      let iteriMin (_:int) item = 
-         if item < currentMin then 
-            currentMin <- item
-      v.IterateIndexed iteriMin 
-      currentMin
-
-
-   [<CompiledName("MinBy")>]
-   let inline minBy f (v:Vector<'T>) = 
-      if v.IsEmpty then 
-         raise <| new ArgumentException("Can't call min on empty vector")
-      let mutable currentMinItem = v.Last
-      let mutable currentMin = f currentMinItem
-      let iteriMin (_:int) item =
-         let fMin = f item
-         if fMin < currentMin then
-            currentMinItem <- item
-            currentMin <- fMin
-      v.IterateIndexed iteriMin 
-      currentMinItem 
-
-
-   [<CompiledName("Sum")>]
-   let inline sum (v:Vector<'T>) : 'T  =
-      let mutable acc = LanguagePrimitives.GenericZero< ^T>
-      let iteriSum (_:int) item =
-         acc <- Checked.(+) acc item
-      v.IterateIndexed iteriSum
-      acc
-
-
-   [<CompiledName("SumBy")>]
-   let inline sumBy (f: 'T -> ^U) (v:Vector<'T>) : ^U = 
-      let mutable acc = LanguagePrimitives.GenericZero< ^U>
-      let iteriSum (_:int) item =
-         acc <- Checked.(+) acc (f item)
-      v.IterateIndexed iteriSum
-      acc
-
-
    [<CompiledName("Length")>]
    let inline length (v: Vector<_>) = 
       v.Count
@@ -843,6 +798,78 @@ module Vector =
          f idx item
          true
       Trie.iteri (iteriAll, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+
+
+   [<CompiledName("Min")>]
+   let inline min (v: Vector<'T>) =
+      if v.IsEmpty then 
+         raise <| new ArgumentException("Can't call min on empty vector")
+      let mutable currentMin = v.Last
+      let iteriMin (_:int) item = 
+         if item < currentMin then 
+            currentMin <- item
+      v.IterateIndexed iteriMin 
+      currentMin
+
+
+   [<CompiledName("MinBy")>]
+   let inline minBy f (v:Vector<'T>) = 
+      if v.IsEmpty then 
+         raise <| new ArgumentException("Can't call minBy on empty vector")
+      let mutable currentMinItem = v.Last
+      let mutable currentMin = f currentMinItem
+      let iteriMin (_:int) item =
+         let fMin = f item
+         if fMin < currentMin then
+            currentMinItem <- item
+            currentMin <- fMin
+      v.IterateIndexed iteriMin 
+      currentMinItem
+
+
+   [<CompiledName("Max")>]
+   let inline max (v: Vector<'T>) =
+      if v.IsEmpty then 
+         raise <| new ArgumentException("Can't call max on empty vector")
+      let mutable currentMax = v.Last
+      let iteriMin (_:int) item = 
+         if item > currentMax then 
+            currentMax <- item
+      v.IterateIndexed iteriMin 
+      currentMax
+
+
+   [<CompiledName("MaxBy")>]
+   let inline maxBy f (v:Vector<'T>) = 
+      if v.IsEmpty then 
+         raise <| new ArgumentException("Can't call maxBy on empty vector")
+      let mutable currentMaxItem = v.Last
+      let mutable currentMax = f currentMaxItem
+      let iteriMin (_:int) item =
+         let fMin = f item
+         if fMin > currentMax then
+            currentMaxItem <- item
+            currentMax <- fMin
+      v.IterateIndexed iteriMin 
+      currentMaxItem 
+
+
+   [<CompiledName("Sum")>]
+   let inline sum (v:Vector<'T>) : 'T  =
+      let mutable acc = LanguagePrimitives.GenericZero< ^T>
+      let iteriSum (_:int) item =
+         acc <- Checked.(+) acc item
+      v.IterateIndexed iteriSum
+      acc
+
+
+   [<CompiledName("SumBy")>]
+   let inline sumBy (f: 'T -> ^U) (v:Vector<'T>) : ^U = 
+      let mutable acc = LanguagePrimitives.GenericZero< ^U>
+      let iteriSum (_:int) item =
+         acc <- Checked.(+) acc (f item)
+      v.IterateIndexed iteriSum
+      acc
 
 
    [<CompiledName("ToSeq")>]

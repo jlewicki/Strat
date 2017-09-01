@@ -426,7 +426,7 @@ module Vector =
       [<Fact>]
       let should_throw_for_empty_vector() =
          Assert.Throws<ArgumentException>(Action(fun () -> 
-            Vector.min Vector.empty |> ignore)) |> ignore    
+            Vector.min Vector.empty |> ignore)) |> ignore
 
 
    module MinBy = 
@@ -438,8 +438,34 @@ module Vector =
       
       [<Fact>]
       let should_throw_for_empty_vector() =
+         Assert.Throws<ArgumentException>(Action(fun () ->
+            Vector.minBy fst Vector.empty |> ignore)) |> ignore
+
+
+   module Max = 
+      [<Fact>]
+      let should_return_max_item_in_vector() = 
+         let v = Vector.ofArray [|3;4;7;6;5;-1|]
+         let sum = v |> Vector.max
+         Assert.Equal (7, sum)
+      
+      [<Fact>]
+      let should_throw_for_empty_vector() =
          Assert.Throws<ArgumentException>(Action(fun () -> 
-            Vector.minBy fst Vector.empty |> ignore)) |> ignore    
+            Vector.max Vector.empty |> ignore)) |> ignore
+
+
+   module MaxBy = 
+      [<Fact>]
+      let should_return_max_item_in_vector() = 
+         let v = Vector.ofArray [|(3, 1);(4, 2); (7, 3); (6, 4); (5, 6); (-1, 7)|]
+         let val1, _ = v |> Vector.maxBy fst
+         Assert.Equal (7, val1)
+      
+      [<Fact>]
+      let should_throw_for_empty_vector() =
+         Assert.Throws<ArgumentException>(Action(fun () ->
+            Vector.maxBy fst Vector.empty |> ignore)) |> ignore
 
 
    module Sum = 

@@ -205,13 +205,21 @@ module Vector =
    [<CompiledName("ForAll")>]
    val forall: predicate:('T -> bool) -> vector:Vector<'T> -> bool
 
-   /// O(N). Returns the lowest of all elements of the vector, compared via Operators.min
+   /// O(N). Returns the lowest of all elements of the vector, compared via Operators.min.
    [<CompiledName("Min")>]
    val inline min: vector:Vector<'T> -> 'T  when 'T : comparison 
 
    /// O(N). Returns the lowest of all elements of the array, compared by using Operators.min on the function result.
    [<CompiledName("MinBy")>]
    val inline minBy: f:('T -> 'U) -> vector:Vector<'T> -> 'T  when 'U : comparison 
+
+   /// O(N). Returns the highest of all elements of the vector, compared via Operators.max.
+   [<CompiledName("Max")>]
+   val inline max: vector:Vector<'T> -> 'T  when 'T : comparison 
+
+   /// O(N). Returns the highest of all elements of the array, compared by using Operators.max on the function result.
+   [<CompiledName("MaxBy")>]
+   val inline maxBy: f:('T -> 'U) -> vector:Vector<'T> -> 'T  when 'U : comparison 
 
    /// O(N). Returns the sum of the elements in the vector.
    [<CompiledName("Sum")>]
