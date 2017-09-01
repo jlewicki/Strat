@@ -761,6 +761,13 @@ module Vector =
       | None -> raise <| new KeyNotFoundException()
 
 
+   [<CompiledName("Exists")>]
+   let exists (predicate:'T -> bool) (v:Vector<'T>) =
+      match tryFind predicate v with
+      | Some _ -> true
+      | None -> false
+
+
    [<CompiledName("Zip")>]
    let zip (v1: Vector<'T>) (v2: Vector<'U>) =
       if v1.Count <> v2.Count then

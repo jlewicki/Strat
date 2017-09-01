@@ -386,6 +386,30 @@ module Vector =
          Assert.Equal (pv.Count, pickCount)
 
 
+   module Exists = 
+      [<Fact>]
+      let should_return_true_if_predicate_matches_element() =
+         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let mutable predCount = 0
+         let pred item = 
+            predCount <- predCount + 1
+            item = 7
+         let doesExist = pv |> Vector.exists pred
+         Assert.True doesExist
+         Assert.Equal (3, predCount)
+
+      [<Fact>]
+      let should_return_false_if_predicate_matches_nonw() =
+         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let mutable predCount = 0
+         let pred item = 
+            predCount <- predCount + 1
+            item = 10
+         let doesExist = pv |> Vector.exists pred
+         Assert.False doesExist
+         Assert.Equal (6, predCount)
+
+
    module Zip = 
       [<Fact>]
       let should_return_pairs_of_items_in_both_vectors() =

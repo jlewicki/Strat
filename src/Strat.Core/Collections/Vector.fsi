@@ -197,6 +197,10 @@ module Vector =
    [<CompiledName("Pick")>]
    val pick: f:('T -> 'U option) -> vector:Vector<'T> -> 'U
 
+   /// O(N). Tests if any element in the vector satisfies the given predicate.
+   [<CompiledName("Exists")>]
+   val exists: predicate:('T -> bool) -> vector:Vector<'T> -> bool
+
    /// O(N). Combines the two vectors into a vector of pairs. The two vectors must have equal lengths.
    [<CompiledName("Zip")>]
    val zip: vector1:Vector<'T> -> vector2:Vector<'U> -> Vector<'T * 'U>
