@@ -175,7 +175,7 @@ module Trie =
             else startIdx - (startIdx % NodeArraySize)
       while i >= startIdx do
          if i <= baseI then
-            // We've iterated thrugh the current leaf array, so get the previous one
+            // We've iterated through the current leaf array, so get the previous one
             leafArray <- leafArrayFor (i, count, shift, root, tail)
             baseI <- baseI - NodeArraySize
          let cont = f i leafArray.[arrayIndex i]
@@ -338,9 +338,11 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
       t.ToPersistent()
 
 
-   member this.Iterate (f: 'T -> unit)  = 
-      for item in this do 
-         f item
+   member this.IterateIndexed (f: int -> 'T -> unit)  = 
+      let iteriAppend idx item = 
+         f idx item
+         true
+      Trie.iteri (iteriAppend, 0, count, count, shift, root, tail)
 
 
    interface IEnumerable with
@@ -560,6 +562,64 @@ module Vector =
          t.Add (f i) |> ignore
          i <- i + 1
       t.ToPersistent()
+
+
+   [<CompiledName("Append")>]
+   let append (v1:Vector<'T>) (v2:Vector<'T>) =
+      if v1.IsEmpty then v2
+      elif v2.IsEmpty then v1
+      else
+         let t = v1.ToTransient()
+         let iteriAppend (_:int) item =
+            t.Add item |> ignore
+            true
+         Trie.iteri (iteriAppend, 0, v2.Count, v2.Count, v2.Shift, v2.Root, v2.Tail)
+         t.ToPersistent()
+
+
+   [<CompiledName("Min")>]
+   let inline min (v: Vector<'T>) =
+      if v.IsEmpty then 
+         raise <| new ArgumentException("Can't call min on empty vector")
+      let mutable currentMin = v.Last
+      let iteriMin (_:int) item = 
+         if item < currentMin then 
+            currentMin <- item
+      v.IterateIndexed iteriMin 
+      currentMin
+
+
+   [<CompiledName("MinBy")>]
+   let inline minBy f (v:Vector<'T>) = 
+      if v.IsEmpty then 
+         raise <| new ArgumentException("Can't call min on empty vector")
+      let mutable currentMinItem = v.Last
+      let mutable currentMin = f currentMinItem
+      let iteriMin (_:int) item =
+         let fMin = f item
+         if fMin < currentMin then
+            currentMinItem <- item
+            currentMin <- fMin
+      v.IterateIndexed iteriMin 
+      currentMinItem 
+
+
+   [<CompiledName("Sum")>]
+   let inline sum (v:Vector<'T>) : 'T  =
+      let mutable acc = LanguagePrimitives.GenericZero< ^T>
+      let iteriSum (_:int) item =
+         acc <- Checked.(+) acc item
+      v.IterateIndexed iteriSum
+      acc
+
+
+   [<CompiledName("SumBy")>]
+   let inline sumBy (f: 'T -> ^U) (v:Vector<'T>) : ^U = 
+      let mutable acc = LanguagePrimitives.GenericZero< ^U>
+      let iteriSum (_:int) item =
+         acc <- Checked.(+) acc (f item)
+      v.IterateIndexed iteriSum
+      acc
 
 
    [<CompiledName("Length")>]

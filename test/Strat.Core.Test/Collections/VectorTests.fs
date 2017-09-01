@@ -171,6 +171,29 @@ module Vector =
          Assert.Equal ([|0; 2; 4; 6; 8;|], v)
 
 
+   module Append = 
+      [<Fact>]
+      let should_add_elements_from_vector2_to_end_of_vector1() =
+         let v1 = Vector.ofArray [|1; 2; 3|]
+         let v2 = Vector.ofArray [|4; 5; 6|]
+         let v = Vector.append v1 v2
+         Assert.Equal ([|1; 2; 3; 4; 5; 6|], v)
+      
+      [<Fact>]
+      let should_vector2_if_vector1_is_empty() =
+         let v1 = Vector.empty
+         let v2 = Vector.ofArray [|4; 5; 6|]
+         let v = Vector.append v1 v2
+         Assert.Same (v2, v)
+
+      [<Fact>]
+      let should_vector1_if_vector2_is_empty() =
+         let v1 = Vector.ofArray [|1; 2; 3|]
+         let v2 = Vector.empty
+         let v = Vector.append v1 v2
+         Assert.Same (v1, v)
+
+
    module MapIndexed = 
       [<Fact>]
       let should_apply_mapping_to_each_item_in_vector() = 
@@ -378,6 +401,7 @@ module Vector =
          Assert.Throws<ArgumentException>(Action(fun () -> 
             Vector.zip v1 v2 |> ignore)) |> ignore    
 
+
    module ForAll = 
       [<Fact>]
       let should_return_true_when_all_items_match() =
@@ -390,6 +414,57 @@ module Vector =
          let pv = Vector.ofArray [|3;4;7;6;5;-1|]
          let allGreaterThan0 = pv |> Vector.forall (fun i -> i > 0)
          Assert.False allGreaterThan0
+
+
+   module Min = 
+      [<Fact>]
+      let should_return_min_item_in_vector() = 
+         let v = Vector.ofArray [|3;4;7;6;5;-1|]
+         let sum= v |> Vector.min
+         Assert.Equal (-1, sum)
+      
+      [<Fact>]
+      let should_throw_for_empty_vector() =
+         Assert.Throws<ArgumentException>(Action(fun () -> 
+            Vector.min Vector.empty |> ignore)) |> ignore    
+
+
+   module MinBy = 
+      [<Fact>]
+      let should_return_min_item_in_vector() = 
+         let v = Vector.ofArray [|(3, 1);(4, 2); (7, 3); (6, 4); (5, 6); (-1, 7)|]
+         let val1, _ = v |> Vector.minBy fst
+         Assert.Equal (-1, val1)
+      
+      [<Fact>]
+      let should_throw_for_empty_vector() =
+         Assert.Throws<ArgumentException>(Action(fun () -> 
+            Vector.minBy fst Vector.empty |> ignore)) |> ignore    
+
+
+   module Sum = 
+      [<Fact>]
+      let should_sum_items_in_vector() = 
+         let v = Vector.ofArray [|3;4;7;6;5;-1|]
+         let sum= v |> Vector.sum
+         Assert.Equal (24, sum)
+      
+      [<Fact>]
+      let should_return_0_for_empty_vector() =
+         Assert.Equal (0, Vector.sum Vector.empty)
+
+
+    module SumBy = 
+      [<Fact>]
+      let should_sum_items_in_vector() = 
+         let v = Vector.ofArray [|(3, 1);(4, 2); (7, 3); (6, 4); (5, 6); (-1, 7)|]
+         let sum= v |> Vector.sumBy fst
+         Assert.Equal (24, sum)
+      
+      [<Fact>]
+      let should_return_0_for_empty_vector() =
+         let e : Vector<int*int> = Vector.empty
+         Assert.Equal (0, e |> Vector.sumBy fst)
 
 
    module Iter = 
