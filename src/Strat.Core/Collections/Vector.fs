@@ -147,40 +147,40 @@ module Trie =
 
    // Applies the function to each element in the list, with index. Iteration continues while the function returns 
    // true.  Note: Inlining this into call sites makes a substantial perf improvement
-   let inline iteri (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
+   let inline iteri (f: int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
       let mutable i = startIdx
       // Items are stored in arrays of length NodeArraySize.  baseI is the vector index for the
       // first element in the leaf array that stores element i.
       let mutable baseI = startIdx - (startIdx % NodeArraySize)
       let mutable leafArray = leafArrayFor (startIdx, count, shift, root, tail) 
-      let optF = OptimizedClosures.FSharpFunc<_,_,_>.Adapt(f)
+      let f = OptimizedClosures.FSharpFunc<_,_,_>.Adapt (f)
       while i < endIdxExclusive do
          if (i - baseI) = NodeArraySize then
             // We've iterated thrugh the current leaf array, so get the next one
             leafArray <- leafArrayFor (i, count, shift, root, tail)
             baseI <- baseI + NodeArraySize
-         let cont = optF.Invoke(i, leafArray.[arrayIndex i])
-         //let cont = f i leafArray.[arrayIndex i]
+         let cont = f.Invoke (i, leafArray.[arrayIndex i])
          i <- if cont then i + 1 else endIdxExclusive
 
 
    // Applies the function to each element in the list, with index, in reverse order. Iteration continues while the
    // function returns true.
-   let inline iteriRev (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
+   let inline iteriRev (f: int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
       let mutable i = endIdxExclusive - 1
       let mutable leafArray = leafArrayFor (i, count, shift, root, tail)
+      let f = OptimizedClosures.FSharpFunc<_,_,_>.Adapt (f)
       // Items are stored in arrays of length NodeArraySize.  baseI is the vector index for the
       // first element in the leaf array that stores element i. The starting point for the iteration
       // may be in the tail array, so we need to take that into account.
       let mutable baseI = 
-            if Object.ReferenceEquals(leafArray, tail) then i - tail.Length
-            else startIdx - (startIdx % NodeArraySize)
+         if Object.ReferenceEquals(leafArray, tail) then i - tail.Length
+         else startIdx - (startIdx % NodeArraySize)
       while i >= startIdx do
          if i <= baseI then
             // We've iterated through the current leaf array, so get the previous one
             leafArray <- leafArrayFor (i, count, shift, root, tail)
             baseI <- baseI - NodeArraySize
-         let cont = f i leafArray.[arrayIndex i]
+         let cont = f.Invoke (i, leafArray.[arrayIndex i])
          i <- if cont then i - 1 else startIdx - 1
 
 
@@ -601,9 +601,10 @@ module Vector =
 
    [<CompiledName("MapIndexed")>]
    let mapi (f: int -> 'T -> 'U) (v: Vector<'T>) = 
+      let f = OptimizedClosures.FSharpFunc<_,_,_>.Adapt (f)
       let t = TransientVector<'U>()
       let iteriMap idx item =
-         t.Add (f idx item) |> ignore
+         t.Add (f.Invoke(idx, item)) |> ignore
          true
       Trie.iteri (iteriMap, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
       t.ToPersistent()
@@ -633,9 +634,10 @@ module Vector =
 
    [<CompiledName("Fold")>]
    let fold (f: 'State -> 'T -> 'State) (initial: 'State) (v: Vector<'T>) =
+      let f = OptimizedClosures.FSharpFunc<_,_,_>.Adapt (f)
       let mutable state = initial
       let iterFold (_:int) item = 
-         state <- f state item
+         state <- f.Invoke(state, item)
          true
       Trie.iteri (iterFold, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
       state
@@ -643,9 +645,10 @@ module Vector =
 
    [<CompiledName("FoldBack")>]
    let foldBack (f:'T -> 'State -> 'State) (v: Vector<'T>) (initial: 'State) =
+      let f = OptimizedClosures.FSharpFunc<_,_,_>.Adapt(f)
       let mutable state = initial
       let iterFold (_:int) item = 
-         state <- f item state
+         state <- f.Invoke(item, state)
          true
       Trie.iteriRev (iterFold, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
       state
@@ -791,8 +794,9 @@ module Vector =
 
    [<CompiledName("IterateIndexed")>]
    let iteri (f: int -> 'T -> unit) (v: Vector<'T>) =
+      let f = OptimizedClosures.FSharpFunc<_,_,_>.Adapt (f)
       let iteriAll idx item =
-         f idx item
+         f.Invoke (idx, item)
          true
       Trie.iteri (iteriAll, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
 
