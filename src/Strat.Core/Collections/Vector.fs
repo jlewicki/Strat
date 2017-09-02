@@ -145,26 +145,28 @@ module Trie =
          invalidOp "Unexpected leaf nodes"
 
 
-   /// Applies the function to each element in the list, with index. Iteration continues while the function returns 
-   /// true.
-   let iteri (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
+   // Applies the function to each element in the list, with index. Iteration continues while the function returns 
+   // true.  Note: Inlining this into call sites makes a substantial perf improvement
+   let inline iteri (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
       let mutable i = startIdx
       // Items are stored in arrays of length NodeArraySize.  baseI is the vector index for the
       // first element in the leaf array that stores element i.
       let mutable baseI = startIdx - (startIdx % NodeArraySize)
       let mutable leafArray = leafArrayFor (startIdx, count, shift, root, tail) 
+      let optF = OptimizedClosures.FSharpFunc<_,_,_>.Adapt(f)
       while i < endIdxExclusive do
          if (i - baseI) = NodeArraySize then
             // We've iterated thrugh the current leaf array, so get the next one
             leafArray <- leafArrayFor (i, count, shift, root, tail)
             baseI <- baseI + NodeArraySize
-         let cont = f i leafArray.[arrayIndex i]
+         let cont = optF.Invoke(i, leafArray.[arrayIndex i])
+         //let cont = f i leafArray.[arrayIndex i]
          i <- if cont then i + 1 else endIdxExclusive
 
 
-   /// Applies the function to each element in the list, with index, in reverse order. Iteration continues while the
-   /// function returns true.
-   let iteriRev (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
+   // Applies the function to each element in the list, with index, in reverse order. Iteration continues while the
+   // function returns true.
+   let inline iteriRev (f:int->'T->bool, startIdx: int, endIdxExclusive: int, count, shift, root, tail) = 
       let mutable i = endIdxExclusive - 1
       let mutable leafArray = leafArrayFor (i, count, shift, root, tail)
       // Items are stored in arrays of length NodeArraySize.  baseI is the vector index for the
@@ -180,14 +182,6 @@ module Trie =
             baseI <- baseI - NodeArraySize
          let cont = f i leafArray.[arrayIndex i]
          i <- if cont then i - 1 else startIdx - 1
-
-
-   // Applies the function to each element in the list, with index
-   let iter (f:'T->unit, startIdx, endIdx, count, shift, root, tail) =   
-      let ignoreIdx (idx:int) item =
-         f item
-         true
-      iteri (ignoreIdx, startIdx, endIdx, count, shift, root, tail)
 
 
 open Trie
@@ -329,13 +323,6 @@ type Vector<'T> internal (count:int, shift: int, root: Node<'T>, tail: 'T[]) =
                   invalidOp "Unexpected leaf node"
             // Move contents of last node into tail array
             last, new Vector<'T> (count - 1, newShift, newRoot, newTail)
-
-
-   member this.Map (f: 'T -> 'U) : Vector<'U> =
-      let mutable t = TransientVector<'U>()
-      for item in this do 
-         t <- t.Add (f item)
-      t.ToPersistent()
 
 
    member this.IterateIndexed (f: int -> 'T -> unit)  = 
@@ -796,7 +783,10 @@ module Vector =
 
    [<CompiledName("Iterate")>]
    let iter (f: 'T -> unit) (v: Vector<'T>) =
-      Trie.iter (f, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
+      let iterAll (_:int) item =
+         f item
+         true
+      Trie.iteri (iterAll, 0, v.Count, v.Count, v.Shift, v.Root, v.Tail)
 
 
    [<CompiledName("IterateIndexed")>]
