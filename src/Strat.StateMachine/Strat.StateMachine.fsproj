@@ -2,6 +2,16 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+
+    <!-- Nuget packaging -->
+    <PackageId>Strat.StateMachine</PackageId>
+    <PackageVersion>1.0.0-Beta1</PackageVersion>
+    <Authors>John Lewicki</Authors>
+    <Description>Hierarchical state machine for F#</Description>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReleaseNotes>Beta release</PackageReleaseNotes>
+    <PackageTags>state machine</PackageTags>
+
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,7 +21,6 @@
     <Compile Include="Machine.fs" />
     <Compile Include="Agent.fs" />
     <Compile Include="Definition.fs" />
-    <!-- <Compile Include="Interop.fs" /> -->
   </ItemGroup>
 
 </Project>
