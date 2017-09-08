@@ -13,7 +13,7 @@ module InitializeContextTests =
 
       let smCtx = StateMachine.initializeContext stateTree initData None |> Async.RunSynchronously 
 
-      Assert.Equal(stateA1, smCtx.State.Name)
+      Assert.Equal(stateA1, smCtx.State.Id)
       Assert.Equal(3, smCtx.Data.Entered.Length)
       [stateRoot; stateA; stateA1] 
       |> Seq.zip (smCtx.Data.Entered  |> List.rev |> Seq.map (fun (entered, _, _) -> entered ))
@@ -24,7 +24,7 @@ module InitializeContextTests =
    let InitializeContext_Should_Enter_Initial_State_Of_Starting_State() = 
       let smCtx = StateMachine.initializeContext stateTree initData (Some(stateA2)) |> Async.RunSynchronously  
       
-      Assert.Equal(stateA2A, smCtx.State.Name)
+      Assert.Equal(stateA2A, smCtx.State.Id)
       Assert.Equal(4, smCtx.Data.Entered.Length)
       [stateRoot; stateA; stateA2; stateA2A] 
       |> Seq.zip (smCtx.Data.Entered  |> List.rev |> Seq.map (fun (entered, _, _) -> entered ))
@@ -45,7 +45,7 @@ module TransitionTests =
          let smCtx = handled.NextContext
 
          // Verify state transition
-         Assert.Equal(stateA1, handled.NextContext.State.Name)
+         Assert.Equal(stateA1, handled.NextContext.State.Id)
          Assert.Equal(2, handled.ExitedStates.Length)
 
          // Verify that OnExit functions were called.
@@ -53,8 +53,8 @@ module TransitionTests =
          [stateA2A; stateA2] 
          |> Seq.zip (smCtx.Data.Exited |> List.rev |> Seq.map (fun (exited, _, transCtx) -> 
             // Make sure transCtx.PrevState always records original state, and NextState records the final destination state.
-            Assert.Equal(stateA2A, transCtx.SourceState.Name)
-            Assert.Equal(stateA1, transCtx.TargetState.Name)
+            Assert.Equal(stateA2A, transCtx.SourceState.Id)
+            Assert.Equal(stateA1, transCtx.TargetState.Id)
             // Make sure original data at start of transition is recorded.
             Assert.Same( initData, transCtx.SourceData)
             exited ))
@@ -74,7 +74,7 @@ module TransitionTests =
          let smCtx = handled.NextContext
 
          // Verify state transition
-         Assert.Equal(stateA1, handled.NextContext.State.Name)
+         Assert.Equal(stateA1, handled.NextContext.State.Id)
          Assert.Equal(1, handled.EnteredStates.Length)
 
          // Verify that OnEnter functions were called.
@@ -82,8 +82,8 @@ module TransitionTests =
          [stateA1 ] 
          |> Seq.zip (smCtx.Data.Entered |> List.rev |> Seq.map (fun (entered, _, transCtx) -> 
             // Make sure transCtx.PrevState always records original state, and NextState records the final destination state.
-            Assert.Equal(stateA2A, transCtx.SourceState.Name)
-            Assert.Equal(stateA1, transCtx.TargetState.Name)
+            Assert.Equal(stateA2A, transCtx.SourceState.Id)
+            Assert.Equal(stateA1, transCtx.TargetState.Id)
             // Make sure original data at start of transition is recorded.
             Assert.Same( initData, transCtx.SourceData)
             entered ))
@@ -101,7 +101,7 @@ module TransitionTests =
       match processed with
       | HandledMessage(handled) ->
          let smCtx = handled.NextContext
-         Assert.Equal(stateB2, smCtx.State.Name)
+         Assert.Equal(stateB2, smCtx.State.Id)
          Assert.True( smCtx.Data.B1ToB2TransitionTick.IsSome )
 
          let actionTick =  smCtx.Data.B1ToB2TransitionTick.Value
@@ -122,11 +122,12 @@ module TransitionTests =
       match processed with
       | HandledMessage(handled) ->
          let smCtx = handled.NextContext
-         Assert.Equal(stateC1, smCtx.State.Name)
+         Assert.Equal(stateC1, smCtx.State.Id)
+
          Assert.Equal(1, handled.ExitedStates.Length)
-         Assert.Equal(stateC1, handled.ExitedStates.Head |> State.name)
+         Assert.Equal(stateC1, handled.ExitedStates.Head |> State.ref)
          Assert.Equal(1, handled.EnteredStates.Length)
-         Assert.Equal(stateC1, handled.EnteredStates.Head |> State.name)
+         Assert.Equal(stateC1, handled.EnteredStates.Head |> State.ref)
       | _ -> Assert.False(true)
 
    [<Fact>]
@@ -139,11 +140,11 @@ module TransitionTests =
       match processed with
       | HandledMessage(handled) ->
          let smCtx = handled.NextContext
-         Assert.Equal(stateC2, smCtx.State.Name)
+         Assert.Equal(stateC2, smCtx.State.Id)
          Assert.Equal(1, handled.ExitedStates.Length)
-         Assert.Equal(stateC2, handled.ExitedStates.Head |> State.name)
+         Assert.Equal(stateC2, handled.ExitedStates.Head |> State.ref)
          Assert.Equal(1, handled.EnteredStates.Length)
-         Assert.Equal(stateC2, handled.EnteredStates.Head |> State.name)
+         Assert.Equal(stateC2, handled.EnteredStates.Head |> State.ref)
       | _ -> Assert.False(true)
 
    [<Fact>]

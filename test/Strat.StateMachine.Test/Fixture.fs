@@ -5,7 +5,6 @@ open System.Threading;
 open Strat.StateMachine
 open Strat.StateMachine.State
 open Strat.StateMachine.Definition
-open Strat.StateMachine.Definition.Define
 
 
 // State tree for unit testing.
@@ -15,8 +14,8 @@ module TransitionsSm =
 
    and Data = {
       Tick: int
-      Entered: List<StateName*int*TransitionContext<Data,Message>>
-      Exited: List<StateName*int*TransitionContext<Data,Message>>
+      Entered: List<StateId*int*TransitionContext<Data,Message>>
+      Exited: List<StateId*int*TransitionContext<Data,Message>>
       B1ToB2TransitionTick: option<int>
    }
 
@@ -27,20 +26,20 @@ module TransitionsSm =
    type MessageContext = MessageContext<Data, Message>    
 
    // Names of the states in the state tree
-   let stateRoot = StateName "root"
-   let stateA = StateName "A"
-   let stateA1 = StateName "A1"
-   let stateA2 = StateName "A2"
-   let stateA2A = StateName "A2A"
-   let stateB = StateName "B"
-   let stateB1 = StateName "B1"
-   let stateB2 = StateName "B2"
-   let stateC = StateName "C"
-   let stateC1 = StateName "C1"
-   let stateC2 = StateName "C2"
-   let stateErrorOnEnter = StateName "ErrorOnEnter"
-   let stateSleepOnEnter = StateName "SleepOnEnter"
-   let stateSleepOnExit = StateName "SleepOnExit"
+   let stateRoot = StateId "root"
+   let stateA = StateId "A"
+   let stateA1 = StateId "A1"
+   let stateA2 = StateId "A2"
+   let stateA2A = StateId "A2A"
+   let stateB = StateId "B"
+   let stateB1 = StateId "B1"
+   let stateB2 = StateId "B2"
+   let stateC = StateId "C"
+   let stateC1 = StateId "C1"
+   let stateC2 = StateId "C2"
+   let stateErrorOnEnter = StateId "ErrorOnEnter"
+   let stateSleepOnEnter = StateId "SleepOnEnter"
+   let stateSleepOnExit = StateId "SleepOnExit"
 
    let stateErrorOnEnterMessage = "Thrown when entering B3"
    let stateSleepOnEnterExitSleepInSeconds = 0.1
@@ -48,21 +47,21 @@ module TransitionsSm =
    // Handler functions
    let onEnter (transCtx: TransitionContext) =
       // Deliberate conditions for testing purposes      
-      if transCtx.HandlingState.Name = stateErrorOnEnter then
+      if transCtx.HandlingState.Id = stateErrorOnEnter then
          raise <| Exception(stateErrorOnEnterMessage)
-      elif transCtx.HandlingState.Name = stateSleepOnEnter then
+      elif transCtx.HandlingState.Id = stateSleepOnEnter then
          Thread.Sleep(TimeSpan.FromSeconds stateSleepOnEnterExitSleepInSeconds)
 
       let ctx = transCtx.TargetData
-      { ctx with Entered = (transCtx.HandlingState.Name, ctx.Tick, transCtx)::ctx.Entered; Tick = ctx.Tick + 1;} 
+      { ctx with Entered = (transCtx.HandlingState.Id, ctx.Tick, transCtx)::ctx.Entered; Tick = ctx.Tick + 1;} 
   
    let onExit (transCtx: TransitionContext) = 
       // Deliberate conditions for testing purposes      
-      if transCtx.HandlingState.Name = stateSleepOnExit then
+      if transCtx.HandlingState.Id = stateSleepOnExit then
          Thread.Sleep(TimeSpan.FromSeconds stateSleepOnEnterExitSleepInSeconds)
 
       let ctx = transCtx.TargetData
-      { ctx with Exited = (transCtx.HandlingState.Name, ctx.Tick, transCtx)::ctx.Exited; Tick = ctx.Tick + 1} 
+      { ctx with Exited = (transCtx.HandlingState.Id, ctx.Tick, transCtx)::ctx.Exited; Tick = ctx.Tick + 1} 
    
 
    let rootHandler (msgCtx:MessageContext) = 
@@ -82,7 +81,7 @@ module TransitionsSm =
          let ctx = transCtx.TargetData
          { ctx with B1ToB2TransitionTick = Some(ctx.Tick); Tick = ctx.Tick + 1 }
       match msgCtx.Message with
-      | M1 -> msgCtx.GoTo(stateB2, action = (b1Tob2TransitionAction >> async.Return))
+      | M1 -> msgCtx.GoTo(stateB2, action = TransitionHandler.Sync b1Tob2TransitionAction)
       | _ -> MessageResult.Unhandled
 
    let sleepOnExitHandler  (msgCtx:MessageContext) = 
@@ -102,28 +101,29 @@ module TransitionsSm =
 
    // Helper module for wiring in common OnEnter/OnExit handlers
    module Handle  = 
-      let withDefaults (syncMsgHandler: Sync.MessageHandler<_,_>) : Sync.StateHandler<_,_> = 
-         { OnMessage = syncMsgHandler; OnEnter = onEnter; OnExit = onExit }
+      let withDefaults msgHandler : StateHandler<_,_> = 
+         { OnMessage = MessageHandler.Sync msgHandler; OnEnter = TransitionHandler.Sync onEnter; OnExit = TransitionHandler.Sync onExit }
 
       let emptyHandler = 
-         (withDefaults Sync.unhandledMessage)
+         (withDefaults (fun _ -> MessageResult.Unhandled))
 
    // Definition of the state tree.
+   open StateTree
    let stateTree = 
-      syncRoot stateRoot (Start.With stateA) (Handle.withDefaults rootHandler)
-         [ syncInterior stateA (Start.With stateA1) Handle.emptyHandler 
-            [ syncLeaf stateA1 Handle.emptyHandler
-              syncInterior stateA2 (Start.With stateA2A) Handle.emptyHandler
-               [ syncLeaf stateA2A (Handle.withDefaults a2aHandler)] ] 
-           syncInterior stateB (Start.With stateB1) Handle.emptyHandler
-            [ syncLeaf stateB1 (Handle.withDefaults b1Handler)
-              syncLeaf stateB2 Sync.emptyHandler
-              syncLeaf stateErrorOnEnter Handle.emptyHandler
-              syncLeaf stateSleepOnEnter Handle.emptyHandler
-              syncLeaf stateSleepOnExit (Handle.withDefaults sleepOnExitHandler) ]
-           syncInterior stateC (Start.With stateC2) (Handle.withDefaults cHandler) 
-            [ syncLeaf stateC1 Sync.emptyHandler
-              syncLeaf stateC2 (Handle.withDefaults c2Handler) ] ]
+      StateTree.fromRoot stateRoot (Start.With stateA) (Handle.withDefaults rootHandler)
+         [ interior stateA (Start.With stateA1) Handle.emptyHandler 
+            [ leaf stateA1 Handle.emptyHandler
+              interior stateA2 (Start.With stateA2A) Handle.emptyHandler
+               [ leaf stateA2A (Handle.withDefaults a2aHandler)] ] 
+           interior stateB (Start.With stateB1) Handle.emptyHandler
+            [ leaf stateB1 (Handle.withDefaults b1Handler)
+              leaf stateB2 emptyHandler
+              leaf stateErrorOnEnter Handle.emptyHandler
+              leaf stateSleepOnEnter Handle.emptyHandler
+              leaf stateSleepOnExit (Handle.withDefaults sleepOnExitHandler) ]
+           interior stateC (Start.With stateC2) (Handle.withDefaults cHandler) 
+            [ leaf stateC1 State.emptyHandler
+              leaf stateC2 (Handle.withDefaults c2Handler) ] ]
 
    let initData : Data = {
       Tick = 1
@@ -156,8 +156,6 @@ module TransitionsSm =
 // http://accu.org/index.php/journals/252
 module ExampleHsm = 
 
-  open Strat.StateMachine.Definition.Sync
-
    // State machine data type
    type Data = {
       Foo: bool
@@ -173,62 +171,63 @@ module ExampleHsm =
    type MessageContext = MessageContext<Data, Message>
 
    // Names of the states in the state tree
-   let s0 = StateName "S0"
-   let s1 = StateName "S1"
-   let s11 = StateName "S11"
-   let s2 = StateName "S2"
-   let s21 = StateName "S21"
-   let s211 = StateName "S211"
+   let s0 = StateId "S0"
+   let s1 = StateId "S1"
+   let s11 = StateId "S11"
+   let s2 = StateId "S2"
+   let s21 = StateId "S21"
+   let s211 = StateId "S211"
 
    // Handler functions
-   let s0Handler (msgCtx:MessageContext) = 
+   let s0Handler = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | SetData(data) -> msgCtx.Stay(data)
       | E -> msgCtx.GoTo(s211)
-      | _ -> MessageResult.Unhandled
+      | _ -> MessageResult.Unhandled)
 
-   let s1Handler (msgCtx:MessageContext) = 
+   let s1Handler = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | A -> msgCtx.Stay()
       | B -> msgCtx.GoTo(s11)
       | C -> msgCtx.GoTo(s2)
       | D -> msgCtx.GoTo(s1)
       | F -> msgCtx.GoTo(s211)
-      | _ -> MessageResult.Unhandled
+      | _ -> MessageResult.Unhandled)
 
-   let s11Handler (msgCtx:MessageContext) = 
+   let s11Handler  = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | G -> msgCtx.GoTo(s211)
       | H when msgCtx.Data.Foo -> msgCtx.Stay( { msgCtx.Data with Foo = false } ) 
-      | _ -> MessageResult.Unhandled
+      | _ -> MessageResult.Unhandled)
 
-   let s2Handler (msgCtx:MessageContext) = 
+   let s2Handler  = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | C -> msgCtx.GoTo(s1)
       | F -> msgCtx.GoTo(s11)
-      | _ -> MessageResult.Unhandled
+      | _ -> MessageResult.Unhandled)
 
-   let s21Handler (msgCtx:MessageContext) = 
+   let s21Handler  = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | B -> msgCtx.GoTo(s211)
       | H when not msgCtx.Data.Foo -> msgCtx.GoToSelf( { msgCtx.Data with Foo = true } ) 
-      | _ -> MessageResult.Unhandled
+      | _ -> MessageResult.Unhandled)
 
-   let s211Handler (msgCtx:MessageContext) = 
+   let s211Handler  = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | D -> msgCtx.GoTo(s21)
       | G -> msgCtx.GoTo(s0)
-      | _ -> MessageResult.Unhandled
+      | _ -> MessageResult.Unhandled)
 
 
+   open StateTree
    // Definition of the state tree.
    let mkStateTree = 
-      syncRoot s0 (Start.With s1) (Handle.With s0Handler )
-         [ syncInterior s1 (Start.With s11) (Handle.With s1Handler)
-            [ syncLeaf s11 (Sync.Handle.With s11Handler) ]
-           syncInterior s2 (Start.With s21) (Handle.With s2Handler)
-            [ syncInterior s21 (Start.With s211) (Handle.With s21Handler)
-               [ syncLeaf s211 (Handle.With s211Handler) ] ] ]
+      StateTree.fromRoot s0 (Start.With s1) (Handle.With s0Handler )
+         [ interior s1 (Start.With s11) (Handle.With s1Handler)
+            [ leaf s11 (Handle.With s11Handler) ]
+           interior s2 (Start.With s21) (Handle.With s2Handler)
+            [ interior s21 (Start.With s211) (Handle.With s21Handler)
+               [ leaf s211 (Handle.With s211Handler) ] ] ]
 
 
 

@@ -1,6 +1,7 @@
 ﻿namespace Strat.StateMachine
 
 open Xunit
+open Strat.StateMachine.Definition
 
 
 module TurnstileExample =
@@ -15,38 +16,37 @@ module TurnstileExample =
    type MessageContext = MessageContext<Data, Message>
 
    // Names of the states in the state tree
-   let lockedState = StateName "locked"
-   let unlockedState = StateName "unlocked"
+   let lockedState = StateId "locked"
+   let unlockedState = StateId "unlocked"
 
    // Handler functions
-   let lockedHandler (msgCtx:MessageContext) = 
+   let lockedHandler = MessageHandler.Sync (fun msgCtx ->  
       match msgCtx.Message with
       | DepositCoin -> msgCtx.GoTo unlockedState
-      | _ -> Unhandled 
+      | _ -> Unhandled)
 
-   let unlockedHandler (msgCtx:MessageContext) = 
+   let unlockedHandler = MessageHandler.Sync (fun msgCtx ->  
       match msgCtx.Message with
       | Push -> msgCtx.GoTo lockedState
-      | _ -> Unhandled 
+      | _ -> Unhandled)
 
    // Definition of the state tree.
-   open Definition.Define
-   open Definition.Sync
+   open StateTree
    let tree = 
-      flatStates lockedState
-         [ syncLeaf lockedState (Handle.With lockedHandler)
-           syncLeaf unlockedState (Handle.With unlockedHandler) ]
+      StateTree.fromLeaves lockedState
+         [ leaf lockedState (Handle.With lockedHandler)
+           leaf unlockedState (Handle.With unlockedHandler) ]
 
 
    [<Fact>]
    let DepositCoin_When_Locked_Should_Transition_To_Unlocked()  = 
       use turnstile = StateMachineAgent.startNewAgentIn lockedState tree ()
       let ctx = turnstile.SendMessage DepositCoin
-      Assert.Equal( unlockedState, ctx.State.Name)
+      Assert.Equal( unlockedState, ctx.State.Id)
 
 
    [<Fact>]
    let Push_When_Unlocked_Should_Transition_To_Locked()  = 
       use turnstile = StateMachineAgent.startNewAgentIn unlockedState tree ()
       let ctx = turnstile.SendMessage Push
-      Assert.Equal( lockedState, ctx.State.Name)
+      Assert.Equal( lockedState, ctx.State.Id)

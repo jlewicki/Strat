@@ -1,11 +1,13 @@
 ﻿namespace Strat.StateMachine
 
 open Xunit
-open Strat.StateMachine.Definition.Define
-open Strat.StateMachine.Definition.Sync
+open Strat.StateMachine.Definition
+
 
 module ToasterOvenExample =
   
+   open StateTree
+
    type Data = 
       { IsLampOn : bool
         BakingTemp: int
@@ -24,10 +26,10 @@ module ToasterOvenExample =
    type TransitionContext = TransitionContext<Data, Message>
 
    // Names of the states in the state tree
-   let heatingState = StateName "heating"
-   let toastingState = StateName "toasting"
-   let bakingState = StateName "baking"
-   let doorOpenState = StateName "doorOpen"
+   let heatingState = StateId "heating"
+   let toastingState = StateId "toasting"
+   let bakingState = StateId "baking"
+   let doorOpenState = StateId "doorOpen"
 
    // Interfaces representing elements controlled by the state machine
    type IHeatingElement = 
@@ -42,81 +44,89 @@ module ToasterOvenExample =
       abstract Off: unit -> unit
 
    // Handler functions
-   let rootHandler (msgCtx:MessageContext) = 
+   let rootHandler = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | SetBakeTemp(temp) -> msgCtx.Stay { msgCtx.Data with BakingTemp = temp } 
       | SetToastColor(color) -> msgCtx.Stay { msgCtx.Data with ToastColor = color }
-      | _ -> Unhandled
+      | _ -> Unhandled)
 
-   let heatingHandler (msgCtx:MessageContext) = 
+   let heatingHandler = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | OpenDoor -> msgCtx.GoTo doorOpenState
       | Toast -> msgCtx.GoTo toastingState
       | Bake -> msgCtx.GoTo bakingState
-      | _ -> Unhandled 
+      | _ -> Unhandled)
 
-   let heatingEnter (heater: IHeatingElement) (transCtx:TransitionContext) = 
-      heater.On()
-      transCtx.TargetData
+   let heatingEnter (heater: IHeatingElement) =
+      TransitionHandler.Sync (fun transCtx ->
+         heater.On()
+         transCtx.TargetData)
    
-   let heatingExit (heater: IHeatingElement) (transCtx:TransitionContext) = 
-      heater.Off()
-      transCtx.TargetData
+   let heatingExit (heater: IHeatingElement) =
+      TransitionHandler.Sync (fun transCtx ->
+         heater.Off()
+         transCtx.TargetData)
 
    let heatingHandlers (heater: IHeatingElement) = 
       Handle.With (heatingHandler, heatingEnter heater, heatingExit heater)
 
-   let doorOpenHandler (msgCtx:MessageContext) = 
+   let doorOpenHandler = MessageHandler.Sync (fun msgCtx -> 
       match msgCtx.Message with
       | CloseDoor -> msgCtx.GoTo heatingState
-      | _ -> Unhandled 
+      | _ -> Unhandled)
 
-   let doorOpenEnter (light: IOvenLight) (transCtx:TransitionContext) = 
-      light.On()
-      transCtx.TargetData
+   let doorOpenEnter (light: IOvenLight) =
+      TransitionHandler.Sync (fun transCtx ->
+         light.On()
+         transCtx.TargetData)
    
-   let doorOpenExit (light: IOvenLight) (transCtx:TransitionContext) = 
-      light.Off()
-      transCtx.TargetData
+   let doorOpenExit (light: IOvenLight) =
+      TransitionHandler.Sync (fun transCtx ->
+         light.Off()
+         transCtx.TargetData)
 
    let doorOpenHandlers light = 
       Handle.With (doorOpenHandler, doorOpenEnter light, doorOpenExit light)
 
-   let bakingEnter (heater: IHeatingElement) (transCtx:TransitionContext) = 
-      heater.SetTemp transCtx.TargetData.BakingTemp
-      transCtx.TargetData
+   let bakingEnter (heater: IHeatingElement) =
+      TransitionHandler.Sync (fun transCtx ->
+         heater.SetTemp transCtx.TargetData.BakingTemp
+         transCtx.TargetData)
    
-   let bakingExit (heater: IHeatingElement) (transCtx:TransitionContext) = 
-      heater.SetTemp 0
-      transCtx.TargetData
+   let bakingExit (heater: IHeatingElement) =
+      TransitionHandler.Sync (fun transCtx ->
+         heater.SetTemp 0
+         transCtx.TargetData)
 
    let bakingHandlers (heater: IHeatingElement) = 
-         Handle.With (unhandledMessage, bakingEnter heater, bakingExit heater)
+         Handle.With (onEnter=bakingEnter heater, onExit=bakingExit heater)
 
-   let toastingEnter (heater: IHeatingElement) (transCtx:TransitionContext) = 
-      heater.SetTimer transCtx.TargetData.ToastColor
-      transCtx.TargetData
+   let toastingEnter (heater: IHeatingElement) =
+      TransitionHandler.Sync (fun transCtx ->
+         heater.SetTimer transCtx.TargetData.ToastColor
+         transCtx.TargetData)
    
-   let toastingExit (heater: IHeatingElement) (transCtx:TransitionContext) = 
-      heater.ClearTimer()
-      transCtx.TargetData
+   let toastingExit (heater: IHeatingElement) =
+      TransitionHandler.Sync (fun transCtx ->
+         heater.ClearTimer()
+         transCtx.TargetData)
 
    let toastingHandlers (heater: IHeatingElement) = 
-         Handle.With (unhandledMessage, toastingEnter heater, toastingExit heater)
+         Handle.With (onEnter=toastingEnter heater, onExit=toastingExit heater)
 
    // Definition of the state tree.
+   
    let newStateTree heater light = 
-      let heatingState = StateName "heating"
-      let toastingState = StateName "toasting"
-      let bakingState = StateName "baking"
-      let doorOpenState = StateName "doorOpen"
+      let heatingState = StateId "heating"
+      let toastingState = StateId "toasting"
+      let bakingState = StateId "baking"
+      let doorOpenState = StateId "doorOpen"
 
-
-      syncRoot (StateName "root") (Start.With heatingState) (Handle.With rootHandler)
-         [ syncInterior heatingState (Start.With toastingState) (heatingHandlers heater)
-            [ syncLeaf toastingState (toastingHandlers heater)
-              syncLeaf bakingState (bakingHandlers heater) ] 
-           syncLeaf doorOpenState (doorOpenHandlers light) ]
+      StateTree.fromRoot (StateId "root") (Start.With heatingState) (Handle.With rootHandler)
+         [ interior heatingState (Start.With toastingState) (heatingHandlers heater)
+            [ leaf toastingState (toastingHandlers heater)
+              leaf bakingState (bakingHandlers heater) ] 
+           leaf doorOpenState (doorOpenHandlers light) ]
 
 
    // Stub interface implementations

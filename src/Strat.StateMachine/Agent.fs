@@ -11,7 +11,7 @@ type AgentLifecycle<'D,'M> =
    | Started of StateMachineContext<'D,'M>  
    /// The state machine was stopped (either internal or external). This is the terminal state, and the state machine 
    /// may not be restarted. 
-   | Stopped of FromState: StateName *  Type: StopType * FinalData: 'D * Reason: option<StopReason> 
+   | Stopped of FromState: StateId *  Type: StopType * FinalData: 'D * Reason: option<StopReason> 
 
 
 /// Describes how a state machine agent was stopped.
@@ -108,14 +108,14 @@ open System.Threading.Tasks
 type StateMachineAgent<'D,'M>
    ( stateTree: StateTree<'D,'M>, 
       initialData: 'D, 
-      ?initialStateName: StateName, 
+      ?initialStateName: StateId, 
       ?handlerMapping: HandlerMapping<'D,'M> ) =  
 
    // Materialize the state tree 
    let rootState, stateMap = stateTree.Root, stateTree.States  
      
    let _handlerMapping = defaultArg handlerMapping (fun _ handler -> handler) 
-   let _initialStateName = defaultArg initialStateName rootState.Name 
+   let _initialStateName = defaultArg initialStateName (rootState.Id)
    let currentLifecycle = ref AgentLifecycle.New 
    let notifications = Event<AgentNotification<'D,'M>>()
    let errored = Event<exn>()
@@ -226,7 +226,7 @@ type StateMachineAgent<'D,'M>
                   let! nextSmContext = StateMachine.stop smContext reason
 
                   // Enter stopped lifecycle state. 
-                  let nextLifecycle = (AgentLifecycle.Stopped(smContext.State.Name, StopType.External, nextSmContext.Data, reason)) 
+                  let nextLifecycle = (AgentLifecycle.Stopped(smContext.State.Id, StopType.External, nextSmContext.Data, reason)) 
                   return! replyAndLoop (StopReply(true, nextLifecycle)) nextLifecycle
                 
                | AgentLifecycle.Started(smContext), DispatchMessage(message) -> 
@@ -487,8 +487,8 @@ module StateMachineAgent =
 
    /// Creates a new StateMachineAgent instance in the specified initial state.
    [<CompiledName "NewAgentIn">]
-   let newAgentIn (initialStateName: StateName) (stateTree: StateTree<'D,'M>) (initialData: 'D) =
-      new StateMachineAgent<'D,'M>( stateTree, initialData, initialStateName )
+   let newAgentIn (initialState: StateId) (stateTree: StateTree<'D,'M>) (initialData: 'D) =
+      new StateMachineAgent<'D,'M>( stateTree, initialData, initialState )
 
 
    /// Creates and starts a new StateMachineAgent agent instance.
@@ -501,8 +501,8 @@ module StateMachineAgent =
 
    /// Creates and starts a new StateMachineAgent instance in the specified initial state.
    [<CompiledName "StartNewAgentIn">]
-   let startNewAgentIn (initialStateName: StateName) (stateTree: StateTree<'D,'M>) (initialData: 'D) =
-      let agent = newAgentIn initialStateName stateTree initialData
+   let startNewAgentIn (initialState: StateId) (stateTree: StateTree<'D,'M>) (initialData: 'D) =
+      let agent = newAgentIn initialState stateTree initialData
       agent.Start()
       agent
 

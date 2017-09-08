@@ -5,106 +5,44 @@ open System.Collections.Generic
 open System.Diagnostics
 open FSharpx.Collections
 open Strat.Collections
+open Strat.Collections.Perf
 
 
 let numIterations = 5
-let numElements = 100000
-let sourceArray = Array.init numElements id 
-let v = Vector.ofArray sourceArray
-let list = List.ofArray sourceArray
-let pv = PersistentVector.ofSeq sourceArray
-
-
-module Ops =
-   module Vector =
-      let create() = 
-            Vector.ofArray sourceArray |> ignore
-
-      let item() = 
-         let mutable i = 0
-         while i < v.Count - 1 do
-            let item = v.[i]
-            i <- i + 1
-       
-      let iter() = 
-         use e = (v :> IEnumerable<_>).GetEnumerator()
-         while e.MoveNext() do ()
-
-      let add() = 
-         let mutable i = 0
-         let mutable v = Vector.empty
-         while i < sourceArray.Length - 1 do
-            v <- v.Add sourceArray.[i]
-            i <- i + 1
-
-      let remove() =
-         let mutable i = sourceArray.Length - 1
-         let mutable v = v
-         while i >= 0 do
-            let _, newV = v.RemoveLast()
-            v <- newV
-            i <- i - 1
-
-      let map() = 
-         let f item = true
-         v |> Vector.map f |> ignore
-
-      let mapi() = 
-         let f idx item = true
-         v |> Vector.mapi f |> ignore
-
-      let filter() = 
-         let f item = true
-         v |> Vector.filter f |> ignore
-
-      let fold() = 
-         let f state item = item
-         v |> Vector.fold f 0 |> ignore
-
-
-   module List = 
-      let item() = 
-         let mutable i = 0
-         while i < sourceArray.Length - 1 do
-            let item = list |> List.item i
-            i <- i + 1
-
-      let map() = 
-         let f item = true
-         list |> List.map f |> ignore
-
-      let mapi() = 
-         let f i item = true
-         list |> List.mapi f |> ignore
-
-      let filter() = 
-         let f item = true
-         list |> List.filter f |> ignore
-
-      let fold() = 
-         let f state item = item
-         list |> List.fold f 0 |> ignore
-
-
-   module PersistentVector = 
-      let item() = 
-         let mutable i = 0
-         while i < sourceArray.Length - 1 do
-            let item = pv |> PersistentVector.nth i
-            i <- i + 1
-
-      let map() = 
-         let f item = true
-         pv |> PersistentVector.map f |> ignore
-
-      let fold() = 
-         let f state item = item
-         pv |> PersistentVector.fold f 0 |> ignore
-
 
 
 [<EntryPoint>]
 let main argv =
+
+   // let asyncList = List.init 1000 async.Return
+   // let syncList = List.init 1000 id
+   // let lastAsync = async {
+   //    let mutable last = -1
+   //    for a in asyncList do
+   //       let! i = a
+   //       last <- i
+   //    return last
+   // }
+
+   // let lastSync = async {
+   //    let mutable last = -1
+   //    for i in syncList do
+   //       last <- i
+   //    return last
+   // }
+   
+   // Async.RunSynchronously lastAsync |> ignore  
+   // let sw = Stopwatch.StartNew()
+   // let res = Async.RunSynchronously lastAsync   
+   // sw.Stop()     
+   // printfn "Asyncs: %A ms" sw.Elapsed.TotalMilliseconds
+
+   // Async.RunSynchronously lastSync |> ignore
+   // let sw = Stopwatch.StartNew()
+   // let res = Async.RunSynchronously lastSync   
+   // sw.Stop()     
+   // printfn "Syncs: %A ms" sw.Elapsed.TotalMilliseconds
+
 
    let repeat action = 
       for i in [1..numIterations] do
@@ -196,6 +134,11 @@ let main argv =
    sw.Stop()     
    printfn "List Filter: %A ms" sw.Elapsed.TotalMilliseconds   
 
+   Ops.PersistentVector.item()
+   let sw = Stopwatch.StartNew()  
+   Ops.PersistentVector.item |> repeat
+   sw.Stop()     
+   printfn "PersistentVector Item: %A ms" sw.Elapsed.TotalMilliseconds
 
    Ops.PersistentVector.map()
    let sw = Stopwatch.StartNew()
@@ -210,12 +153,32 @@ let main argv =
    sw.Stop()     
    printfn "PersistentVector Fold: %A ms" sw.Elapsed.TotalMilliseconds
 
-   Ops.PersistentVector.item()
+   
+   Ops.IndexedList.item()
    let sw = Stopwatch.StartNew()  
-   Ops.PersistentVector.item |> repeat
+   Ops.IndexedList.item |> repeat
    sw.Stop()     
-   printfn "PersistentVector Item: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "IndexedList Item: %A ms" sw.Elapsed.TotalMilliseconds
 
+   Ops.IndexedList.map()
+   let sw = Stopwatch.StartNew()
+   Ops.IndexedList.map |> repeat
+   sw.Stop()     
+   printfn "IndexedList Map: %A ms" sw.Elapsed.TotalMilliseconds
+
+   Ops.IndexedList.filter()
+   let sw = Stopwatch.StartNew()  
+   Ops.IndexedList.filter |> repeat
+   sw.Stop()     
+   printfn "IndexedList Filter: %A ms" sw.Elapsed.TotalMilliseconds
+
+   Ops.IndexedList.fold()
+   let sw = Stopwatch.StartNew()
+   Ops.IndexedList.fold |> repeat
+   sw.Stop()     
+   printfn "IndexedList Fold: %A ms" sw.Elapsed.TotalMilliseconds
+
+   
   
 
 
