@@ -106,7 +106,7 @@ module IndexList =
    [<CompiledName("Set")>]
    val inline set: index:int -> item:'T -> IndexList<'T> -> IndexList<'T>
 
-   /// O(lg32N). Returns the last item in the list, and new item with the last item removed.
+   /// O(lg32N). Returns the first item in the list, and a new list with the first item removed.
    [<CompiledName("RemoveHead")>]
    val inline removeHead: list:IndexList<'T> -> 'T * IndexList<'T>
 
