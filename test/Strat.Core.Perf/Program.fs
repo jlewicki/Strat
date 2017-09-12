@@ -154,29 +154,29 @@ let main argv =
    printfn "PersistentVector Fold: %A ms" sw.Elapsed.TotalMilliseconds
 
    
-   Ops.IndexedList.item()
-   let sw = Stopwatch.StartNew()  
-   Ops.IndexedList.item |> repeat
-   sw.Stop()     
-   printfn "IndexedList Item: %A ms" sw.Elapsed.TotalMilliseconds
+   // Ops.IndexedList.item()
+   // let sw = Stopwatch.StartNew()  
+   // Ops.IndexedList.item |> repeat
+   // sw.Stop()     
+   // printfn "IndexedList Item: %A ms" sw.Elapsed.TotalMilliseconds
 
-   Ops.IndexedList.map()
-   let sw = Stopwatch.StartNew()
-   Ops.IndexedList.map |> repeat
-   sw.Stop()     
-   printfn "IndexedList Map: %A ms" sw.Elapsed.TotalMilliseconds
+   // Ops.IndexedList.map()
+   // let sw = Stopwatch.StartNew()
+   // Ops.IndexedList.map |> repeat
+   // sw.Stop()     
+   // printfn "IndexedList Map: %A ms" sw.Elapsed.TotalMilliseconds
 
-   Ops.IndexedList.filter()
-   let sw = Stopwatch.StartNew()  
-   Ops.IndexedList.filter |> repeat
-   sw.Stop()     
-   printfn "IndexedList Filter: %A ms" sw.Elapsed.TotalMilliseconds
+   // Ops.IndexedList.filter()
+   // let sw = Stopwatch.StartNew()  
+   // Ops.IndexedList.filter |> repeat
+   // sw.Stop()     
+   // printfn "IndexedList Filter: %A ms" sw.Elapsed.TotalMilliseconds
 
-   Ops.IndexedList.fold()
-   let sw = Stopwatch.StartNew()
-   Ops.IndexedList.fold |> repeat
-   sw.Stop()     
-   printfn "IndexedList Fold: %A ms" sw.Elapsed.TotalMilliseconds
+   // Ops.IndexedList.fold()
+   // let sw = Stopwatch.StartNew()
+   // Ops.IndexedList.fold |> repeat
+   // sw.Stop()     
+   // printfn "IndexedList Fold: %A ms" sw.Elapsed.TotalMilliseconds
 
    
   

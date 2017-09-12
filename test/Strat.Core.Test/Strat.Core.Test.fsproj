@@ -10,7 +10,7 @@
       <Compile Include="Lenses\LensTests.fs" />
       <Compile Include="Collections\ExtensionsTests.fs" />
       <Compile Include="Collections\VectorTests.fs" />
-      <Compile Include="Collections\RandomAccessListTests.fs" />
+      <Compile Include="Collections\IndexListTests.fs" />
       <Compile Include="Program.fs" />
    </ItemGroup>
 

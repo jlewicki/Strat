@@ -9,7 +9,7 @@ open System.Collections.Generic
 /// efficient operations to add and remove elements in the array. In general, these operations are O(lg32N), which in
 /// practice is effectively constant time.
 /// <para>
-/// Vector are implemented as bit partitioned tries, and are closely modeled on the PersistentVector implementation that
+/// Vectors are implemented as bit-partitioned tries, and are closely modeled on the PersistentVector implementation that
 /// can be found in Clojure.</para>
 /// </summary>
 [<Class>]
@@ -19,15 +19,13 @@ type Vector<'T> =
    interface IEnumerable
    interface IEnumerable<'T>
    interface IReadOnlyList<'T>
+   interface Strat.Collections.Primitives.BitTrie.ITrieSource<'T>
    
    /// Returns an empty vector.
    static member Empty: Vector<'T>
 
    /// Creates a new vector containing the items in the specified sequence.
    new: items: seq<'T> -> Vector<'T>
-
-   /// Creates a new vector containing the items in the specified collection.
-   new: items: ICollection<'T> -> Vector<'T>
 
    /// O(1). Returns the number of items in the vector.
    member Count: int
@@ -52,10 +50,6 @@ type Vector<'T> =
 
    /// O(lg32N). Returns the last item in the vector, and new item with the last item removed.
    member RemoveLast: unit -> 'T * Vector<'T>
-
-   /// O(N). Applies the specified function to each element of the vector. The integer passed to the function
-   /// indicates the index of element.
-   member IterateIndexed: f:(int -> 'T -> unit) -> unit
 
 
 /// Functional operators for <c>Vector<_></c>.
@@ -211,19 +205,19 @@ module Vector =
 
    /// O(N). Returns the lowest of all elements of the vector, compared via Operators.min.
    [<CompiledName("Min")>]
-   val inline min: vector:Vector<'T> -> 'T  when 'T : comparison 
+   val min: vector:Vector<'T> -> 'T  when 'T : comparison 
 
    /// O(N). Returns the lowest of all elements of the array, compared by using Operators.min on the function result.
    [<CompiledName("MinBy")>]
-   val inline minBy: f:('T -> 'U) -> vector:Vector<'T> -> 'T  when 'U : comparison 
+   val minBy: f:('T -> 'U) -> vector:Vector<'T> -> 'T  when 'U : comparison 
 
    /// O(N). Returns the highest of all elements of the vector, compared via Operators.max.
    [<CompiledName("Max")>]
-   val inline max: vector:Vector<'T> -> 'T  when 'T : comparison 
+   val max: vector:Vector<'T> -> 'T  when 'T : comparison 
 
    /// O(N). Returns the highest of all elements of the array, compared by using Operators.max on the function result.
    [<CompiledName("MaxBy")>]
-   val inline maxBy: f:('T -> 'U) -> vector:Vector<'T> -> 'T  when 'U : comparison 
+   val maxBy: f:('T -> 'U) -> vector:Vector<'T> -> 'T  when 'U : comparison 
 
    /// O(N). Returns the sum of the elements in the vector.
    [<CompiledName("Sum")>]

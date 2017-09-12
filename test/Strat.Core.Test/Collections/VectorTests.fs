@@ -113,13 +113,8 @@ module Vector =
       let should_add_item_at_end_of_vector() = 
          let largeArray = Array.unfold (fun i -> if i < 35 then Some(i + 1, i + 1) else None) 0
          let mutable pv = Vector.empty
-         largeArray
-         |> Array.iteri (fun idx item -> pv <- pv.Add item)
-
-         Assert.Equal (largeArray.Length, pv.Count)
-         largeArray
-         |> Array.iteri (fun idx item -> 
-            Assert.Equal(item, pv.[idx])) 
+         largeArray |> Array.iteri (fun idx item -> pv <- pv.Add item)
+         Assert.Equal(largeArray, pv)
 
 
    module RemoveLast = 
@@ -155,9 +150,7 @@ module Vector =
          use e = (v :> IEnumerable<int>).GetEnumerator()     
          for i in [1..(v.Count / 2)] do
             e.MoveNext() |> ignore
-        
          e.Reset()
-         
          let mutable currentIndex = 0
          while e.MoveNext() do
             Assert.Equal (largeArray.[currentIndex], e.Current)
@@ -180,14 +173,14 @@ module Vector =
          Assert.Equal ([|1; 2; 3; 4; 5; 6|], v)
       
       [<Fact>]
-      let should_vector2_if_vector1_is_empty() =
+      let should_return_vector2_if_vector1_is_empty() =
          let v1 = Vector.empty
          let v2 = Vector.ofArray [|4; 5; 6|]
          let v = Vector.append v1 v2
          Assert.Same (v2, v)
 
       [<Fact>]
-      let should_vector1_if_vector2_is_empty() =
+      let should_return_vector1_if_vector2_is_empty() =
          let v1 = Vector.ofArray [|1; 2; 3|]
          let v2 = Vector.empty
          let v = Vector.append v1 v2
@@ -201,7 +194,7 @@ module Vector =
          let f (idx: int) (i: int) = i - idx
          let mappedV = Vector.mapi f v
          Assert.Equal (v.Count, mappedV.Count)
-         for i in [0 .. v.Count - 1] do
+         for i = 0 to v.Count - 1 do
             Assert.Equal (largeArray.[i] - i, mappedV.[i])
 
 
@@ -212,7 +205,7 @@ module Vector =
          let f (i: int) = i * 2
          let mappedV = Vector.map f v
          Assert.Equal (v.Count, mappedV.Count)
-         for i in [0 .. v.Count - 1] do
+         for i = 0 to v.Count - 1 do
             Assert.Equal (largeArray.[i] * 2, mappedV.[i])
 
 
@@ -220,7 +213,11 @@ module Vector =
       [<Fact>]
       let should_apply_predicate_and_only_include_items_when_true() = 
          let v = Vector.ofArray largeArray
-         let pred item = item % 2 = 0
+         let mutable nextI = 0
+         let pred item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1 
+            item % 2 = 0
          let filteredV = v |> Vector.filter pred
          Assert.Equal( largeArray.Length / 2, filteredV.Count)
 
@@ -242,7 +239,12 @@ module Vector =
       [<Fact>]
       let should_apply_fold_to_each_item_from_back_and_return_final_state() =
          let v = Vector.ofArray [|1; 2; 3|]
-         let result = Vector.foldBack (fun acc elem -> acc - elem) v 0
+         let mutable nextI = v.Count - 1
+         let foldDiff item total =
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI - 1  
+            item - total
+         let result = Vector.foldBack foldDiff v 0
          Assert.Equal (2, result)
 
 
@@ -250,7 +252,11 @@ module Vector =
       [<Fact>]
       let should_collect_each_mapped_vector() = 
          let v = Vector.ofArray [|1; 2; 3|]
-         let map item = Vector.ofArray (Array.replicate item item)
+         let mutable nextI = 0
+         let map item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
+            Vector.ofArray (Array.replicate item item)
          let collectedV = Vector.collect map v
          Assert.Equal ([1; 2; 2; 3; 3; 3], collectedV)
 
@@ -270,15 +276,20 @@ module Vector =
       let should_reverse_items_in_vector() =
          let v = Vector.ofArray largeArray
          let reversedV = Vector.rev v
-         Assert.Equal(v.Count, reversedV.Count)
+         Assert.Equal (largeArray |> Array.rev, reversedV)
 
 
    module TryFind = 
       [<Fact>]
       let should_return_item_that_matches_predicate() =
-         let pv = Vector.ofArray largeArray
+         let v = Vector.ofArray largeArray
          let target = largeArray.[largeArray.Length / 2]
-         let matched = pv |> Vector.tryFind (fun item -> item = target)
+         let mutable nextI = 0
+         let pred item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
+            item = target
+         let matched = v |> Vector.tryFind pred
          Assert.True matched.IsSome
          Assert.Equal(target, matched.Value)
 
@@ -292,9 +303,14 @@ module Vector =
    module Find = 
       [<Fact>]
       let should_return_item_that_matches_predicate() =
-         let pv = Vector.ofArray largeArray
+         let v = Vector.ofArray largeArray
          let target = largeArray.[largeArray.Length / 2]
-         let matched = pv |> Vector.find (fun item -> item = target)
+         let mutable nextI = 0
+         let pred item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
+            item = target
+         let matched = v |> Vector.find pred
          Assert.Equal(target, matched)
 
       [<Fact>]
@@ -306,10 +322,15 @@ module Vector =
    module TryFindIndex = 
       [<Fact>]
       let should_return_item_that_matches_predicate() =
-         let pv = Vector.ofArray largeArray
+         let v = Vector.ofArray largeArray
          let targetIndex = largeArray.Length / 2
          let target = largeArray.[largeArray.Length / 2]
-         let matchedIndex = pv |> Vector.tryFindIndex (fun item -> item = target)
+         let mutable nextI = 0
+         let pred item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
+            item = target
+         let matchedIndex = v |> Vector.tryFindIndex pred
          Assert.True matchedIndex.IsSome
          Assert.Equal(targetIndex, matchedIndex.Value)
 
@@ -323,10 +344,15 @@ module Vector =
    module FindIndex = 
       [<Fact>]
       let should_return_item_that_matches_predicate() =
-         let pv = Vector.ofArray largeArray
+         let v = Vector.ofArray largeArray
          let targetIndex = largeArray.Length / 2
          let target = largeArray.[largeArray.Length / 2]
-         let matchedIndex = pv |> Vector.findIndex (fun item -> item = target)
+         let mutable nextI = 0
+         let pred item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
+            item = target
+         let matchedIndex = v |> Vector.findIndex pred
          Assert.Equal(targetIndex, matchedIndex)
 
       [<Fact>]
@@ -338,12 +364,15 @@ module Vector =
    module TryPick = 
       [<Fact>]
       let should_return_first_some_returned_by_function() =
-         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let v = Vector.ofArray [|3;4;7;6;5;7|]
          let mutable pickCount = 0
+         let mutable nextI = 0
          let picker item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
             pickCount <- pickCount + 1
             if item = 7 then Some("7") else None
-         let picked = pv |> Vector.tryPick picker
+         let picked = v |> Vector.tryPick picker
          Assert.True picked.IsSome
          Assert.Equal ("7", picked.Value)
          Assert.Equal (3, pickCount)
@@ -351,50 +380,56 @@ module Vector =
 
       [<Fact>]
       let should_return_none_if_function_never_returns_some() =
-         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let v = Vector.ofArray [|3;4;7;6;5;7|]
          let mutable pickCount = 0
          let picker item = 
             pickCount <- pickCount + 1
             None
-         let picked = pv |> Vector.tryPick picker
+         let picked = v |> Vector.tryPick picker
          Assert.True picked.IsNone
-         Assert.Equal (pv.Count, pickCount)
+         Assert.Equal (v.Count, pickCount)
 
 
    module Pick = 
       [<Fact>]
       let should_return_first_some_returned_by_function() =
-         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let v = Vector.ofArray [|3;4;7;6;5;7|]
          let mutable pickCount = 0
+         let mutable nextI = 0
          let picker item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
             pickCount <- pickCount + 1
             if item = 7 then Some("7") else None
-         let picked = pv |> Vector.pick picker
+         let picked = v |> Vector.pick picker
          Assert.Equal ("7", picked)
          Assert.Equal (3, pickCount)
 
 
       [<Fact>]
       let should_throw_if_function_never_returns_some() =
-         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let v = Vector.ofArray [|3;4;7;6;5;7|]
          let mutable pickCount = 0
          let picker item = 
             pickCount <- pickCount + 1
             None
          Assert.Throws<KeyNotFoundException>(Action(fun () -> 
-            pv |> Vector.pick picker |> ignore)) |> ignore    
-         Assert.Equal (pv.Count, pickCount)
+            v |> Vector.pick picker |> ignore)) |> ignore    
+         Assert.Equal (v.Count, pickCount)
 
 
    module Exists = 
       [<Fact>]
       let should_return_true_if_predicate_matches_element() =
-         let pv = Vector.ofArray [|3;4;7;6;5;7|]
+         let v = Vector.ofArray [|3;4;7;6;5;7|]
          let mutable predCount = 0
+         let mutable nextI = 0
          let pred item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
             predCount <- predCount + 1
             item = 7
-         let doesExist = pv |> Vector.exists pred
+         let doesExist = v |> Vector.exists pred
          Assert.True doesExist
          Assert.Equal (3, predCount)
 
@@ -429,15 +464,31 @@ module Vector =
    module ForAll = 
       [<Fact>]
       let should_return_true_when_all_items_match() =
-         let pv = Vector.ofArray [|3;4;7;6;5;1|]
-         let allGreaterThan0 = pv |> Vector.forall (fun i -> i > 0)
+         let v = Vector.ofArray [|3;4;7;6;5;1|]
+         let mutable nextI = 0
+         let mutable predCount = 0
+         let pred item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
+            predCount <- predCount + 1
+            item > 0
+         let allGreaterThan0 = v |> Vector.forall pred
          Assert.True allGreaterThan0
+         Assert.Equal (v.Count, predCount)
 
       [<Fact>]
       let should_return_false_when_all_items_do_not_match() =
-         let pv = Vector.ofArray [|3;4;7;6;5;-1|]
-         let allGreaterThan0 = pv |> Vector.forall (fun i -> i > 0)
+         let v = Vector.ofArray [|3;4;7;6;5;-1|]
+         let mutable nextI = 0
+         let mutable predCount = 0
+         let pred item = 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1  
+            predCount <- predCount + 1
+            item > 0
+         let allGreaterThan0 = v |> Vector.forall pred
          Assert.False allGreaterThan0
+         Assert.Equal (v.Count, predCount)
 
 
    module Min = 

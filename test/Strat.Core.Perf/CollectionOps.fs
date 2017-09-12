@@ -13,7 +13,7 @@ module Ops =
    let sourceArray = Array.init numElements id 
    let v = Vector.ofArray sourceArray
    let list = List.ofArray sourceArray
-   let ral = RandomAccessList.ofArray sourceArray
+   //let ral = RandomAccessList.ofArray sourceArray
    let pv = PersistentVector.ofSeq sourceArray
 
    module Vector =
@@ -86,29 +86,29 @@ module Ops =
          list |> List.fold f 0 |> ignore
 
 
-   module IndexedList = 
+   // module IndexedList = 
     
-      let item() = 
-         let mutable i = 0
-         while i < sourceArray.Length - 1 do
-            let item = ral |> RandomAccessList.get i
-            i <- i + 1
+   //    let item() = 
+   //       let mutable i = 0
+   //       while i < sourceArray.Length - 1 do
+   //          let item = ral |> RandomAccessList.get i
+   //          i <- i + 1
 
-      let map() = 
-         let f item = true
-         ral |> RandomAccessList.map f |> ignore
+   //    let map() = 
+   //       let f item = true
+   //       ral |> RandomAccessList.map f |> ignore
 
-      let mapi() = 
-         let f i item = true
-         ral |> RandomAccessList.mapi f |> ignore
+   //    let mapi() = 
+   //       let f i item = true
+   //       ral |> RandomAccessList.mapi f |> ignore
 
-      let filter() = 
-         let f item = true
-         ral |> RandomAccessList.filter f |> ignore
+   //    let filter() = 
+   //       let f item = true
+   //       ral |> RandomAccessList.filter f |> ignore
 
-      let fold() = 
-         let f state item = item
-         ral |> RandomAccessList.fold f 0 |> ignore
+   //    let fold() = 
+   //       let f state item = item
+   //       ral |> RandomAccessList.fold f 0 |> ignore
 
 
 
