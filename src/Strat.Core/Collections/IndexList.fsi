@@ -36,10 +36,10 @@ type IndexList<'T> =
    /// O(lg32N). Returns the item at the specified 0-based index. Throws an exception if the index is out of range.
    member Item: i:int -> 'T with get
 
-   /// O(1). Returns the last item in the list. Throws an exception if the index is out of range.
+   /// O(1). Returns the first item in the list. Throws an exception if the index is out of range.
    member Head: 'T
 
-   /// O(1). Returns the last item in the list, or None if the list is empty.
+   /// O(1). Returns the first item in the list, or None if the list is empty.
    member TryHead: option<'T>
 
    /// O(lg32N). Returns a new list by replacing the item at the specified index with the specfied item.
@@ -48,7 +48,7 @@ type IndexList<'T> =
    /// O(lg32N). Returns a new list by adding the specified item at the end of the list.
    member Cons: item:'T -> IndexList<'T>
 
-   /// O(lg32N). Returns the last item in the list, and new item with the last item removed.
+   /// O(lg32N). Returns the first item in the list, and a new list with the first item removed.
    member RemoveHead: unit -> 'T * IndexList<'T>
 
 

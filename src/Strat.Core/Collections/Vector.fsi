@@ -48,7 +48,7 @@ type Vector<'T> =
    /// O(lg32N). Returns a new vector by adding the specified item at the end of the vector.
    member Add: item:'T -> Vector<'T>
 
-   /// O(lg32N). Returns the last item in the vector, and new item with the last item removed.
+   /// O(lg32N). Returns the last item in the vector, and a new vector with the last item removed.
    member RemoveLast: unit -> 'T * Vector<'T>
 
 
