@@ -2,6 +2,15 @@
 
    <PropertyGroup>
       <TargetFramework>netstandard2.0</TargetFramework>
+
+      <!-- Nuget packaging -->
+      <PackageId>Strat.Core</PackageId>
+      <PackageVersion>1.0.0-Beta1</PackageVersion>
+      <Authors>John Lewicki</Authors>
+      <Description>Collections and utilities for F#</Description>
+      <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+      <PackageReleaseNotes>Beta release</PackageReleaseNotes>
+      <PackageTags>F# collections</PackageTags>
    </PropertyGroup>
 
    <ItemGroup>
