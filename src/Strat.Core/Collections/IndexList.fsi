@@ -45,7 +45,7 @@ type IndexList<'T> =
    /// O(lg32N). Returns a new list by replacing the item at the specified index with the specfied item.
    member Set: index:int * item:'T ->  IndexList<'T>
 
-   /// O(lg32N). Returns a new list by adding the specified item at the end of the list.
+   /// O(lg32N). Returns a new list by adding the specified item at the front of the list.
    member Cons: item:'T -> IndexList<'T>
 
    /// O(lg32N). Returns the first item in the list, and a new list with the first item removed.
