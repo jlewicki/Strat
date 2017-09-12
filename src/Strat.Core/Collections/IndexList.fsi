@@ -24,6 +24,8 @@ type IndexList<'T> =
    /// Returns an empty list.
    static member Empty: IndexList<'T>
 
+   new: trie: Strat.Collections.Primitives.BitTrie.Trie<'T> -> IndexList<'T>
+
    /// Creates a new list containing the items in the specified sequence.
    new: items: seq<'T> -> IndexList<'T>
 

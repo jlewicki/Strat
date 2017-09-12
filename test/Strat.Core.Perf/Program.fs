@@ -8,41 +8,11 @@ open Strat.Collections
 open Strat.Collections.Perf
 
 
-let numIterations = 5
+let numIterations = 20
 
 
 [<EntryPoint>]
 let main argv =
-
-   // let asyncList = List.init 1000 async.Return
-   // let syncList = List.init 1000 id
-   // let lastAsync = async {
-   //    let mutable last = -1
-   //    for a in asyncList do
-   //       let! i = a
-   //       last <- i
-   //    return last
-   // }
-
-   // let lastSync = async {
-   //    let mutable last = -1
-   //    for i in syncList do
-   //       last <- i
-   //    return last
-   // }
-   
-   // Async.RunSynchronously lastAsync |> ignore  
-   // let sw = Stopwatch.StartNew()
-   // let res = Async.RunSynchronously lastAsync   
-   // sw.Stop()     
-   // printfn "Asyncs: %A ms" sw.Elapsed.TotalMilliseconds
-
-   // Async.RunSynchronously lastSync |> ignore
-   // let sw = Stopwatch.StartNew()
-   // let res = Async.RunSynchronously lastSync   
-   // sw.Stop()     
-   // printfn "Syncs: %A ms" sw.Elapsed.TotalMilliseconds
-
 
    let repeat action = 
       for i in [1..numIterations] do
@@ -58,49 +28,55 @@ let main argv =
    let sw = Stopwatch.StartNew()  
    Ops.Vector.item |> repeat
    sw.Stop()     
-   printfn "Item: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "Vector Item: %A ms" sw.Elapsed.TotalMilliseconds
 
    Ops.Vector.add()
    let sw = Stopwatch.StartNew()
    Ops.Vector.add |> repeat
    sw.Stop  |> repeat   
-   printfn "Add: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "Vector Add: %A ms" sw.Elapsed.TotalMilliseconds
 
    Ops.Vector.iter()
    let sw = Stopwatch.StartNew()
    Ops.Vector.iter |> repeat
    sw.Stop()     
-   printfn "Enumerate: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "Vector Enumerate: %A ms" sw.Elapsed.TotalMilliseconds
    
    Ops.Vector.remove()
    let sw = Stopwatch.StartNew()
    Ops.Vector.remove |> repeat
    sw.Stop()     
-   printfn "Remove: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "Vector Remove: %A ms" sw.Elapsed.TotalMilliseconds
 
    Ops.Vector.map()
    let sw = Stopwatch.StartNew()
    Ops.Vector.map |> repeat
    sw.Stop()     
-   printfn "Map: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "Vector Map: %A ms" sw.Elapsed.TotalMilliseconds
 
    Ops.Vector.mapi()
    let sw = Stopwatch.StartNew()
    Ops.Vector.mapi |> repeat
    sw.Stop()     
-   printfn "MapIndexed: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "Vector MapIndexed: %A ms" sw.Elapsed.TotalMilliseconds
 
    Ops.Vector.fold()
    let sw = Stopwatch.StartNew()
    Ops.Vector.fold |> repeat
    sw.Stop()     
-   printfn "Fold: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "Vector Fold: %A ms" sw.Elapsed.TotalMilliseconds
 
    Ops.Vector.filter()
    let sw = Stopwatch.StartNew()
    Ops.Vector.filter |> repeat
    sw.Stop()     
-   printfn "Filter: %A ms" sw.Elapsed.TotalMilliseconds
+   printfn "Vector Filter: %A ms" sw.Elapsed.TotalMilliseconds
+
+   Ops.Vector.reverse()
+   let sw = Stopwatch.StartNew()
+   Ops.Vector.reverse |> repeat
+   sw.Stop()     
+   printfn "Vector Reverse: %A ms" sw.Elapsed.TotalMilliseconds
 
 
    // Ops.List.item()
@@ -121,7 +97,6 @@ let main argv =
    sw.Stop()     
    printfn "List MapIndexed: %A ms" sw.Elapsed.TotalMilliseconds
 
-
    Ops.List.fold()
    let sw = Stopwatch.StartNew()
    Ops.List.fold |> repeat
@@ -132,7 +107,14 @@ let main argv =
    let sw = Stopwatch.StartNew()
    Ops.List.filter |> repeat
    sw.Stop()     
-   printfn "List Filter: %A ms" sw.Elapsed.TotalMilliseconds   
+   printfn "List Filter: %A ms" sw.Elapsed.TotalMilliseconds  
+
+   Ops.List.reverse()
+   let sw = Stopwatch.StartNew()
+   Ops.List.reverse |> repeat
+   sw.Stop()     
+   printfn "List Reverse: %A ms" sw.Elapsed.TotalMilliseconds   
+
 
    Ops.PersistentVector.item()
    let sw = Stopwatch.StartNew()  
@@ -140,12 +122,17 @@ let main argv =
    sw.Stop()     
    printfn "PersistentVector Item: %A ms" sw.Elapsed.TotalMilliseconds
 
+   Ops.PersistentVector.add()
+   let sw = Stopwatch.StartNew()
+   Ops.PersistentVector.add |> repeat
+   sw.Stop  |> repeat   
+   printfn "PersistentVector Add: %A ms" sw.Elapsed.TotalMilliseconds
+
    Ops.PersistentVector.map()
    let sw = Stopwatch.StartNew()
    Ops.PersistentVector.map |> repeat
    sw.Stop()     
    printfn "PersistentVector Map: %A ms" sw.Elapsed.TotalMilliseconds
-
 
    Ops.PersistentVector.fold()
    let sw = Stopwatch.StartNew()
@@ -153,34 +140,46 @@ let main argv =
    sw.Stop()     
    printfn "PersistentVector Fold: %A ms" sw.Elapsed.TotalMilliseconds
 
-   
-   // Ops.IndexedList.item()
-   // let sw = Stopwatch.StartNew()  
-   // Ops.IndexedList.item |> repeat
-   // sw.Stop()     
-   // printfn "IndexedList Item: %A ms" sw.Elapsed.TotalMilliseconds
-
-   // Ops.IndexedList.map()
-   // let sw = Stopwatch.StartNew()
-   // Ops.IndexedList.map |> repeat
-   // sw.Stop()     
-   // printfn "IndexedList Map: %A ms" sw.Elapsed.TotalMilliseconds
-
-   // Ops.IndexedList.filter()
-   // let sw = Stopwatch.StartNew()  
-   // Ops.IndexedList.filter |> repeat
-   // sw.Stop()     
-   // printfn "IndexedList Filter: %A ms" sw.Elapsed.TotalMilliseconds
-
-   // Ops.IndexedList.fold()
-   // let sw = Stopwatch.StartNew()
-   // Ops.IndexedList.fold |> repeat
-   // sw.Stop()     
-   // printfn "IndexedList Fold: %A ms" sw.Elapsed.TotalMilliseconds
+   Ops.PersistentVector.reverse()
+   let sw = Stopwatch.StartNew()
+   Ops.PersistentVector.reverse |> repeat
+   sw.Stop()     
+   printfn "PersistentVector Reverse: %A ms" sw.Elapsed.TotalMilliseconds
 
    
-  
 
+   Ops.IndexList.item()
+   let sw = Stopwatch.StartNew()  
+   Ops.IndexList.item |> repeat
+   sw.Stop()     
+   printfn "IndexedList Item: %A ms" sw.Elapsed.TotalMilliseconds
+
+   Ops.IndexList.map()
+   let sw = Stopwatch.StartNew()
+   Ops.IndexList.map |> repeat
+   sw.Stop()     
+   printfn "IndexedList Map: %A ms" sw.Elapsed.TotalMilliseconds
+
+   Ops.IndexList.filter()
+   let sw = Stopwatch.StartNew()  
+   Ops.IndexList.filter |> repeat
+   sw.Stop()     
+   printfn "IndexedList Filter: %A ms" sw.Elapsed.TotalMilliseconds
+
+   Ops.IndexList.fold()
+   let sw = Stopwatch.StartNew()
+   Ops.IndexList.fold |> repeat
+   sw.Stop()     
+   printfn "IndexedList Fold: %A ms" sw.Elapsed.TotalMilliseconds
+
+   Ops.IndexList.reverse()
+   let sw = Stopwatch.StartNew()
+   Ops.IndexList.reverse |> repeat
+   sw.Stop()     
+   printfn "IndexList Reverse: %A ms" sw.Elapsed.TotalMilliseconds
 
    
+   Console.WriteLine("Press Enter to exit")
+   Console.ReadLine() |> ignore
+ 
    0 // return an integer exit code

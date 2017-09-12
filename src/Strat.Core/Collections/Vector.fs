@@ -171,7 +171,7 @@ module Vector =
 
    [<CompiledName("MapIndexed")>]
    let mapi (f: int -> 'T -> 'U) (l: Vector<'T>) = 
-      new Vector<'U> (mapi false f l.Trie |> rev)
+      new Vector<'U> (mapi false f l.Trie)
 
 
    [<CompiledName("Map")>]
@@ -206,7 +206,7 @@ module Vector =
 
    [<CompiledName("Reverse")>]
    let rev (v: Vector<'T>) = 
-      new Vector<'U> (rev v.Trie)
+      new Vector<'U> (rev false v.Trie)
 
 
    [<CompiledName("TryFind")>]

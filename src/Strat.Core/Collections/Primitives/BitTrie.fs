@@ -95,15 +95,15 @@ module BitTrie =
 
 
    // Returns the array that contains the element at the specified index
-   let leafArrayFor (index: int) (trie: Trie<'T>) : 'T[] = 
-      if index >= tailOffset trie.Count then 
+   let leafArray (index: int) count shift root tail = 
+      if index >= tailOffset count then 
          // Element at the index is within the 'tail part', so just return the tail array
-         trie.Tail
+         tail
       else
          // Element at the index is within the 'tree part', so we need to traverse the tree. Visit each level of the
          // trie by calculating the index in each level of the child to descend into.
-         let mutable node = trie.Root
-         let mutable level = trie.Shift
+         let mutable node = root
+         let mutable level = shift
          let mutable leafArray = Unchecked.defaultof<'T[]>
          while level >= 0 do
             let arrIdx = arrayIndex (index >>> level)
@@ -115,6 +115,11 @@ module BitTrie =
                leafArray <- arr
                level <- -1
          leafArray
+
+
+   // Returns the array that contains the element at the specified index
+   let inline leafArrayFor (index: int) (trie: Trie<'T>) : 'T[] = 
+      leafArray index trie.Count trie.Shift trie.Root trie.Tail
 
 
    // Returns a new node representing the root of a tree with the specified level, and the specified node as the first
@@ -437,6 +442,8 @@ module BitTrie =
             | Interior (_, arr) -> Interior (root.OwnerThread, Array.copy arr)
             | Leaf (_, arr) -> Leaf (root.OwnerThread, Array.copy arr)
 
+      
+
 
       [<NoComparison; NoEquality>]
       type TransientTrie<'T> = {
@@ -470,12 +477,41 @@ module BitTrie =
                this.Shift <- newShift
                this.Count <- this.Count + 1
 
+
          member this.ToPersistentTrie() : Trie<'T> = 
             this.Root <- this.Root.SetOwnerThread (ref null)
             let trimmedTail = Array.zeroCreate (this.Count - tailOffset this.Count)
             System.Array.Copy (this.Tail, trimmedTail, trimmedTail.Length)
-            { Count = this.Count; Shift = this.Shift; Root = this.Root; Tail = trimmedTail}
-      
+            { Count = this.Count; Shift = this.Shift; Root = this.Root; Tail = trimmedTail }
+
+
+         member this.Reverse() = 
+            let mutable forwardI = 0 
+            let mutable forwardLeafArray = leafArray 0 this.Count this.Shift this.Root this.Tail
+            let mutable forwardBaseI = 0
+            let mutable backwardI = this.Count - 1
+            let mutable backwardLeafArray = leafArray (this.Count - 1) this.Count this.Shift this.Root this.Tail
+            let mutable backwardBaseI =
+               if Object.ReferenceEquals(backwardLeafArray, this.Tail) then tailOffset this.Count
+               else 0
+            while forwardI < backwardI do
+               if (forwardI - forwardBaseI) = NodeArraySize then
+                  // We've iterated thrugh the current leaf array, so get the next one
+                  forwardLeafArray <- leafArray forwardI this.Count this.Shift this.Root this.Tail
+                  forwardBaseI <- forwardBaseI + NodeArraySize
+               if backwardI < backwardBaseI then
+                  // We've iterated through the current leaf array, so get the previous one
+                  backwardLeafArray <- leafArray backwardI this.Count this.Shift this.Root this.Tail
+                  backwardBaseI <- backwardBaseI - NodeArraySize
+               let forwardArrIdx = arrayIndex forwardI
+               let forwardItem = forwardLeafArray.[forwardArrIdx]
+               let backwardArrIdx = arrayIndex backwardI
+               let backwardItem = backwardLeafArray.[backwardArrIdx]
+               forwardLeafArray.[forwardArrIdx] <- backwardItem
+               backwardLeafArray.[backwardArrIdx] <- forwardItem
+               forwardI <- forwardI + 1
+               backwardI <- backwardI - 1
+         
 
       let inline emptyTrie() : TransientTrie<'T> = 
          { Count = 0; Shift = Bits; Root = Interior(ref Thread.CurrentThread, newNodeArray()); Tail = newNodeArray() }
@@ -485,13 +521,13 @@ module BitTrie =
         { Count = trie.Count; Shift = trie.Shift; Root = editableNode trie.Root; Tail = editableTail trie.Tail}
 
 
-   let rev (trie: Trie<'T>) = 
-      let reversed = Transient.emptyTrie()
+   let rev revIter (trie: Trie<'T>) = 
+      let reversedT = Transient.emptyTrie()
       let inline iteriReverse (_:int) item = 
-         reversed.Add item
+         reversedT.Add item
          true
       iteriRev (iteriReverse, 0, trie.Count, trie)
-      reversed.ToPersistentTrie()
+      reversedT.ToPersistentTrie()
 
    let ofArray (rev: bool) (arr: 'T[]) = 
       let t = Transient.emptyTrie()
@@ -518,8 +554,9 @@ module BitTrie =
       match s with
       | :? ICollection<'T> as c when c.Count <= NodeArraySize ->
           // Small collection that can fit in the tail part
-         let arr = Array.zeroCreate c.Count
+         let mutable arr = Array.zeroCreate c.Count
          c.CopyTo (arr, 0)
+         if revIter then arr <- arr |> Array.rev
          newTrie (c.Count, Bits, emptyInteriorNode, arr)
       | :? list<'T> as l -> ofList revIter l
       | :? ('T[]) as arr -> ofArray revIter arr
@@ -527,9 +564,9 @@ module BitTrie =
       | _ ->
          let t = Transient.emptyTrie()
          s |> Seq.iter (fun item -> t.Add item)
-         let pt = t.ToPersistentTrie()
-         if revIter then rev pt else pt
-
+         if revIter then t.Reverse()
+         t.ToPersistentTrie()
+         
 
    let last (trie: Trie<'T>) =   
       if trie.Count = 0 then 
@@ -561,6 +598,7 @@ module BitTrie =
          true
       let fIteri = if revIter then iteriRev else iteri
       fIteri (iteriMap, 0, count, trie)
+      if revIter then mappedT.Reverse()
       mappedT.ToPersistentTrie()
 
 
@@ -610,8 +648,8 @@ module BitTrie =
          fIteri (iterAdd, 0, nextTrie.Count, nextTrie)   
          true
       fIteri (iterCollect, 0, trie.Count, trie)
-      let t = collectedT.ToPersistentTrie()
-      if revIter then t |> rev else t
+      if revIter then collectedT.Reverse()
+      collectedT.ToPersistentTrie()
 
 
    let choose revIter (f: 'T -> 'U option) (trie: Trie<'T>) : Trie<'U> =
@@ -623,6 +661,7 @@ module BitTrie =
          | _ -> ()
          true
       fIteri (iterChoose, 0, trie.Count, trie)
+      if revIter then chooseT.Reverse()
       chooseT.ToPersistentTrie()
 
 
@@ -700,6 +739,7 @@ module BitTrie =
       let it2 = createEnum t2
       while it1.MoveNext() && it2.MoveNext() do 
          zippedT.Add (it1.Current, it2.Current)
+      if revIter then zippedT.Reverse()
       zippedT.ToPersistentTrie()
 
 

@@ -191,22 +191,31 @@ module Vector =
       [<Fact>]
       let should_apply_mapping_to_each_item_in_vector() = 
          let v = Vector.ofArray largeArray
-         let f (idx: int) (i: int) = i - idx
+         let mutable nextI = 0
+         let f (idx: int) (item: int) =
+            Assert.Equal (nextI, idx) 
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1 
+            item - idx
          let mappedV = Vector.mapi f v
          Assert.Equal (v.Count, mappedV.Count)
          for i = 0 to v.Count - 1 do
-            Assert.Equal (largeArray.[i] - i, mappedV.[i])
+            Assert.Equal (v.[i] - i, mappedV.[i])
 
 
    module Map = 
       [<Fact>]
       let should_apply_mapping_to_each_item_in_vector() = 
          let v = Vector.ofArray largeArray
-         let f (i: int) = i * 2
+         let mutable nextI = 0
+         let f (item: int) =
+            Assert.Equal (v.[nextI], item)
+            nextI <- nextI + 1 
+            item * 2
          let mappedV = Vector.map f v
          Assert.Equal (v.Count, mappedV.Count)
          for i = 0 to v.Count - 1 do
-            Assert.Equal (largeArray.[i] * 2, mappedV.[i])
+            Assert.Equal (v.[i] * 2, mappedV.[i])
 
 
    module Filter = 

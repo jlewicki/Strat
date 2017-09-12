@@ -219,8 +219,8 @@ module IndexList =
 
    module Map = 
       [<Fact>]
-      let should_apply_mapping_to_each_item_in_list() = 
-         let l = IndexList.ofArray largeArray
+      let should_apply_mapping_to_each_item_in_list() =
+         let l = IndexList.ofArray  <| Array.init 33 id
          let mutable nextI = 0
          let f (item: int) =
             Assert.Equal (l.[nextI], item)
@@ -299,7 +299,8 @@ module IndexList =
       let should_reverse_items_in_list() =
          let l = IndexList.ofArray largeArray
          let reversedL = IndexList.rev l
-         Assert.Equal (largeArray |> Array.rev, reversedL)
+         for i = 0 to l.Count - 1 do
+            Assert.Equal (largeArray.[l.Count - 1 - i], reversedL.[i])
 
 
    module TryFind = 

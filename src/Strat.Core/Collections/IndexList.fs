@@ -8,8 +8,9 @@ open Strat.Collections.Primitives
 open Strat.Collections.Primitives.BitTrie
 
 
-// IndexList is almost identical to Vector, except that input/output indicies are reversed. Additionally the direction
-// of iteration for various IndexList combinators is reversed.
+// IndexList is almost identical to Vector, except that 
+// * Input/output indices are reversed.
+// * The direction of iteration for various IndexList combinators is reversed.
 [<Sealed>]
 type IndexList<'T> (trie: Trie<'T>) =
    static let emptyInteriorNode : Node<'T> = BitTrie.emptyInteriorNode
@@ -20,7 +21,7 @@ type IndexList<'T> (trie: Trie<'T>) =
    new (items: seq<'T>) = 
       if isNull items then 
          raise <| ArgumentNullException("items")
-      new IndexList<'T> (ofSeq false items |> rev)
+      new IndexList<'T> (ofSeq true items)
 
 
    member this.Count 
@@ -130,8 +131,8 @@ module IndexList =
       while i < count do
          tt.Add (f i)
          i <- i + 1
-      let reversed = rev (tt.ToPersistentTrie())
-      new IndexList<'T> (reversed)
+      tt.Reverse()
+      new IndexList<'T> (tt.ToPersistentTrie())
 
 
    [<CompiledName("Append")>]
@@ -186,14 +187,12 @@ module IndexList =
    [<CompiledName("MapIndexed")>]
    let mapi (f: int -> 'T -> 'U) (l: IndexList<'T>) = 
       let f idx item = f (reverseIndex idx l.Count) item
-      // Sad that we have to reverse at the end :(
-      new IndexList<'U> (mapi true f l.Trie |> rev)
+      new IndexList<'U> (mapi true f l.Trie)
 
 
    [<CompiledName("Map")>]
    let map (f: 'T -> 'U) (l: IndexList<'T>) = 
-      // Sad that we have to reverse at the end :(
-      new IndexList<'U> (BitTrie.mapi true (fun _ item -> f item) l.Trie |> rev)
+      new IndexList<'U> (BitTrie.mapi true (fun _ item -> f item) l.Trie)
 
 
    [<CompiledName("Filter")>]
@@ -218,12 +217,12 @@ module IndexList =
 
    [<CompiledName("Choose")>]
    let choose (f: 'T -> 'U option) (v: IndexList<'T>) =
-      new IndexList<'U> (choose true f v.Trie |> rev)
+      new IndexList<'U> (choose true f v.Trie)
 
 
    [<CompiledName("Reverse")>]
    let rev (v: IndexList<'T>) = 
-      new IndexList<'U> (rev v.Trie)
+      new IndexList<'U> (rev true v.Trie)
 
 
    [<CompiledName("TryFind")>]
@@ -265,7 +264,7 @@ module IndexList =
 
    [<CompiledName("Zip")>]
    let zip (l1: IndexList<'T>) (l2: IndexList<'U>) =
-      new IndexList<'T*'U> (zip true l1.Trie l2.Trie |> BitTrie.rev)
+      new IndexList<'T*'U> (zip true l1.Trie l2.Trie)
 
 
    [<CompiledName("ForAll")>]
