@@ -9,15 +9,13 @@ open Strat.Collections
 
 module Ops =
 
-   let numElements = 100000
+   let numElements = 10000
    let sourceArray = Array.init numElements id 
-   let v = Vector.ofArray sourceArray
-   let il = IndexList.ofArray sourceArray
-   let list = List.ofArray sourceArray
-   //let ral = RandomAccessList.ofArray sourceArray
-   let pv = PersistentVector.ofSeq sourceArray
+  
 
    module Vector =
+      let v = Vector.ofArray sourceArray
+
       let create() = 
             Vector.ofArray sourceArray |> ignore
 
@@ -69,8 +67,11 @@ module Ops =
 
 
    module IndexList =
+      let il = IndexList.ofArray sourceArray
+
       let create() = 
             IndexList.ofArray sourceArray |> ignore
+
 
       let item() = 
          let mutable i = 0
@@ -119,6 +120,7 @@ module Ops =
 
 
    module List = 
+      let list = List.ofArray sourceArray
       let item() = 
          let mutable i = 0
          while i < sourceArray.Length - 1 do
@@ -147,6 +149,7 @@ module Ops =
 
 
    module PersistentVector = 
+      let pv = PersistentVector.ofSeq sourceArray
       let add() = 
          let mutable i = 0
          let mutable v = PersistentVector.empty
@@ -172,3 +175,36 @@ module Ops =
       let fold() = 
          let f state item = item
          pv |> PersistentVector.fold f 0 |> ignore
+
+
+   module Map = 
+      let pairs = sourceArray |> Array.mapi (fun idx item -> sourceArray.Length - 1 - idx, item)
+
+      let create() = 
+         pairs |> Map.ofSeq |> ignore 
+
+
+      let add() = 
+         let mutable i = 0
+         let mutable m = Map.empty
+         while i < sourceArray.Length - 1 do
+            m <- m.Add (sourceArray.Length - 1 - i, sourceArray.[i])
+            i <- i + 1
+
+
+   module PrioritySearchQueue = 
+      let pairs = sourceArray |> Array.mapi (fun idx item -> sourceArray.Length - 1 - idx, item)
+      let sortedPairs = pairs |> Array.sortBy fst
+
+      //let psq = PrioritySearchQueue.ofSeq false pairs
+
+      let createFromOrderedSeq() = 
+         sortedPairs |> PrioritySearchQueue.ofOrderedSeq |> ignore 
+
+
+      let add() = 
+         let mutable i = 0
+         let mutable v = PrioritySearchQueue.empty
+         while i < sourceArray.Length - 1 do
+            v <- v.Add (sourceArray.Length - 1 - i, sourceArray.[i])
+            i <- i + 1

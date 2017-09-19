@@ -43,14 +43,14 @@ module Vector =
          Assert.False pv.IsEmpty
 
 
-    module Indexer = 
+   module Indexer = 
       [<Fact>]
       let should_return_value_at_index() = 
          let pv = Vector.ofArray largeArray
          largeArray |> Array.iteri (fun idx item -> Assert.Equal (item, pv.[idx]))
 
       [<Fact>]
-      let should_throw_index_out_of_range() =
+      let should_throw_if_index_out_of_range() =
          let pv = Vector.ofSeq ['a'; 'b']
          Assert.Throws<IndexOutOfRangeException>(Action(fun () -> 
             pv.[-1] |> ignore)) |> ignore
@@ -243,6 +243,12 @@ module Vector =
          let total = v |> Vector.fold foldSum 0
          Assert.Equal (Array.sum largeArray, total)
 
+      [<Fact>]
+      let should_return_initial_state_if_vector_is_empty() =
+         let foldSum total v = total + v
+         let total = Vector.empty |> Vector.fold foldSum -1
+         Assert.Equal (-1, total)
+
 
    module FoldBack = 
       [<Fact>]
@@ -255,6 +261,12 @@ module Vector =
             item - total
          let result = Vector.foldBack foldDiff v 0
          Assert.Equal (2, result)
+
+      [<Fact>]
+      let should_return_initial_state_if_vector_is_empty() =
+         let foldSum v total = total + v
+         let total = Vector.foldBack foldSum Vector.empty -1
+         Assert.Equal (-1, total)
 
 
    module Collect = 
@@ -372,7 +384,7 @@ module Vector =
 
    module TryPick = 
       [<Fact>]
-      let should_return_first_some_returned_by_function() =
+      let should_return_picked_item() =
          let v = Vector.ofArray [|3;4;7;6;5;7|]
          let mutable pickCount = 0
          let mutable nextI = 0
@@ -388,7 +400,7 @@ module Vector =
 
 
       [<Fact>]
-      let should_return_none_if_function_never_returns_some() =
+      let should_return_none_if_no_item_is_picked() =
          let v = Vector.ofArray [|3;4;7;6;5;7|]
          let mutable pickCount = 0
          let picker item = 
@@ -443,7 +455,7 @@ module Vector =
          Assert.Equal (3, predCount)
 
       [<Fact>]
-      let should_return_false_if_predicate_matches_nonw() =
+      let should_return_false_if_predicate_matches_none() =
          let pv = Vector.ofArray [|3;4;7;6;5;7|]
          let mutable predCount = 0
          let pred item = 

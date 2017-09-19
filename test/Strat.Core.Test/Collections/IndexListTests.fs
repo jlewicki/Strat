@@ -257,6 +257,12 @@ module IndexList =
          let total = l |> IndexList.fold foldSum 0
          Assert.Equal (Array.sum largeArray, total)
 
+      [<Fact>]
+      let should_return_initial_state_if_list_is_empty() =
+         let foldSum total v = total + v
+         let total = IndexList.empty |> IndexList.fold foldSum -1
+         Assert.Equal (-1, total)
+
 
    module FoldBack = 
       [<Fact>]
@@ -269,6 +275,12 @@ module IndexList =
             item - total
          let result = IndexList.foldBack (fun acc elem -> acc - elem) l 0
          Assert.Equal (2, result)
+
+      [<Fact>]
+      let should_return_initial_state_if_list_is_empty() =
+         let foldSum v total = total + v
+         let total = IndexList.foldBack foldSum IndexList.empty -1
+         Assert.Equal (-1, total)
 
 
    module Collect = 
@@ -388,7 +400,7 @@ module IndexList =
 
    module TryPick = 
       [<Fact>]
-      let should_return_first_some_returned_by_function() =
+      let should_return_picked_item() =
          let arr =  [|3;4;7;6;5;7|]
          let il = IndexList.ofArray arr
          let mutable pickCount = 0
@@ -405,7 +417,7 @@ module IndexList =
 
 
       [<Fact>]
-      let should_return_none_if_function_never_returns_some() =
+      let should_return_none_if_no_item_is_picked() =
          let il = IndexList.ofArray [|3;4;7;6;5;7|]
          let mutable pickCount = 0
          let picker item = 

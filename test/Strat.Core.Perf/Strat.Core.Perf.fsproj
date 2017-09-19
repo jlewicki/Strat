@@ -7,12 +7,15 @@
 
   <ItemGroup>
     <Compile Include="PersistentVector.fs" />
+    <Compile Include="Common.fs" />
+    <Compile Include="PrioritySearchQueueBenchmarks.fs" />
     <Compile Include="CollectionOps.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Strat.Core\Strat.Core.fsproj" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.10.9" />
   </ItemGroup>
 
 </Project>

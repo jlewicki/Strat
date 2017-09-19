@@ -17,3 +17,9 @@ packages/
 
 # Visual Studio Code cache/options directory
 .vscode/
+
+# Jetbrains Rider cache/options directory
+.idea/
+
+# BenchmarkDoNet reports
+BenchmarkDotNet.Artifacts/

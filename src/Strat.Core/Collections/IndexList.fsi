@@ -5,12 +5,12 @@ open System.Collections.Generic
 
 
 /// <summary>
-/// A IndexList is a persistent collection that provides fast indexed access to elements in the collection, as well as
-/// efficient operations to add and remove elements in the list. In general, these operations are O(lg32N), which in
-/// practice is effectively constant time.
+/// An index list is a persistent collection that combines the behavior of a list and an indexed collection. Traditional
+/// list operations such as adding, accessing or removing an item at the front of the list in constant time are 
+/// supported, as well as (near) constant time lookup of items in the list by index.
 /// <para>
-/// IndexLists are implemented as bit-partitioned tries, and are closely modeled on the PersistentVector implementation that
-/// can be found in Clojure.</para>
+/// Index lists are implemented as bit-partitioned tries, and are closely modeled on the PersistentVector implementation
+/// that can be found in Clojure </para>
 /// </summary>
 [<Class>]
 [<Sealed>]

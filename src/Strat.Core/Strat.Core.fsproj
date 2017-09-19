@@ -17,10 +17,13 @@
       <Compile Include="Pervasives.fs" />
       <Compile Include="Collections\CollectionExtensions.fs" />
       <Compile Include="Collections\Primitives\BitTrie.fs" />
+      <Compile Include="Collections\Primitives\Pennant.fs" />
       <Compile Include="Collections\Vector.fsi" />
       <Compile Include="Collections\Vector.fs" />
       <Compile Include="Collections\IndexList.fsi" />
       <Compile Include="Collections\IndexList.fs" />
+      <Compile Include="Collections\PrioritySearchQueue.fsi" />
+      <Compile Include="Collections\PrioritySearchQueue.fs" />
       <Compile Include="Lenses\Lens.fsi" />
       <Compile Include="Lenses\Lens.fs" />
       <Compile Include="Lenses\Lenses.fs" />
