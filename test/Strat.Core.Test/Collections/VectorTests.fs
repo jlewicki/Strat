@@ -42,6 +42,10 @@ module Vector =
          let pv = Vector.ofSeq ["one"; "two"]
          Assert.False pv.IsEmpty
 
+      [<Fact>]
+      let should_return_true_if_empty() = 
+         Assert.True Vector.empty.IsEmpty
+
 
    module Indexer = 
       [<Fact>]
@@ -67,7 +71,7 @@ module Vector =
 
       [<Fact>]
       let should_throw_if_vector_is_empty() = 
-         Assert.Throws<KeyNotFoundException>(Action(fun () -> 
+         Assert.Throws<InvalidOperationException>(Action(fun () -> 
             Vector.empty.Last |> ignore )) |> ignore
 
 

@@ -54,7 +54,7 @@ type IndexList<'T> (trie: Trie<'T>) =
       with get() = 
          match this.TryHead with
          | Some item -> item
-         | None -> raise <| new KeyNotFoundException()
+         | None -> raise <| new InvalidOperationException("Collection is emtpy")
 
 
    member this.Cons (item: 'T) = 

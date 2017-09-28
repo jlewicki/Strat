@@ -18,6 +18,8 @@
       <Compile Include="Collections\CollectionExtensions.fs" />
       <Compile Include="Collections\Primitives\BitTrie.fs" />
       <Compile Include="Collections\Primitives\Pennant.fs" />
+      <Compile Include="Collections\LazyList.fsi" />
+      <Compile Include="Collections\LazyList.fs" />
       <Compile Include="Collections\Vector.fsi" />
       <Compile Include="Collections\Vector.fs" />
       <Compile Include="Collections\IndexList.fsi" />

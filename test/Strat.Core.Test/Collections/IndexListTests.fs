@@ -53,6 +53,10 @@ module IndexList =
          let pv = IndexList.ofSeq ["one"; "two"]
          Assert.False pv.IsEmpty
 
+      [<Fact>]
+      let should_return_true_if_empty() = 
+         Assert.True IndexList.empty.IsEmpty
+
 
    module Indexer = 
       [<Fact>]
@@ -79,7 +83,7 @@ module IndexList =
 
       [<Fact>]
       let should_throw_if_list_is_empty() = 
-         Assert.Throws<KeyNotFoundException>(Action(fun () -> 
+         Assert.Throws<InvalidOperationException>(Action(fun () -> 
             IndexList.empty.Head |> ignore )) |> ignore
 
 

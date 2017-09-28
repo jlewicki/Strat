@@ -49,7 +49,7 @@ type Vector<'T> (trie: Trie<'T>) =
       with get() = 
          match this.TryLast with
          | Some item -> item
-         | None -> raise <| new KeyNotFoundException()
+         | None -> raise <| new InvalidOperationException("Collection is emtpy")
 
 
    member this.Add (item: 'T) = 

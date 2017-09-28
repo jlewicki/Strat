@@ -9,6 +9,7 @@
       <Compile Include="CoreTests.fs" />
       <Compile Include="Lenses\LensTests.fs" />
       <Compile Include="Collections\ExtensionsTests.fs" />
+      <Compile Include="Collections\LazyListTests.fs" />
       <Compile Include="Collections\VectorTests.fs" />
       <Compile Include="Collections\IndexListTests.fs" />
       <Compile Include="Collections\PrioritySearchQueueTests.fs" />
