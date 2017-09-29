@@ -48,6 +48,14 @@ module ListQueue =
       | LazyList.Cons (_, prevaledRest) -> 
          struct (left, right, prevaledRest)  
 
+//    let rec ofList list = 
+//       let struct (count, left) = 
+//          (0, LazyList.empty) 
+//          |> List.foldBack (fun item (count, ll) -> 
+//             struct ( count + 1, ll |> LazyList.cons item)
+//          ) list 
+       
+
 
    let length (q: ListQueue<'T>) = 
       q.Count
@@ -62,6 +70,7 @@ module ListQueue =
       let right = LazyList.cons item queue.Right
       let struct (left, right, prevaledLeft) = balance queue.Left right queue.PrevaledLeft
       newQueue (queue.Count + 1) left right prevaledLeft
+
 
    let dequeue (queue: ListQueue<'T>) = 
       if queue.Count = 0 then 

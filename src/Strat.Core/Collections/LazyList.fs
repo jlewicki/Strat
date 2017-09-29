@@ -133,7 +133,10 @@ module LazyList =
       items 
       |> Seq.rev
       |> Seq.fold (fun ll item -> 
-          lazy (Cons (item, ll)) |> toLazyList
+          // Since we are not lazily building the list, we'll go ahead a force/cache the lazy value
+          let forcedCell = lazy (Cons (item, ll))
+          forcedCell.Value |> ignore
+          forcedCell |> toLazyList
       ) empty
 
 
