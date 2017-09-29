@@ -114,7 +114,7 @@ open Strat.Collections.Primitives
 open Strat.Collections.Primitives.ListQueue
 
 
-[<NoComparison; NoEquality>]
+[<Sealed; NoComparison; NoEquality>]
 type Queue<'T> private (q: ListQueue<'T>) = 
 
    static let empty = new Queue<'T> (newQueue 0 LazyList.empty LazyList.Empty LazyList.empty)
@@ -129,6 +129,10 @@ type Queue<'T> private (q: ListQueue<'T>) =
       q.Count
 
 
+   member this.Head = 
+      q |> head
+
+
    member this.Enqueue item =
       new Queue<'T> (q |> ListQueue.enqueue item)
 
@@ -136,3 +140,47 @@ type Queue<'T> private (q: ListQueue<'T>) =
    member this.Dequeue() =
       let struct (item, rest) = q |> ListQueue.dequeue
       struct (item, new Queue<'T> (rest))
+
+
+   interface IEnumerable with
+      member this.GetEnumerator() = 
+        new ListQueueEnumerator<'T> (q) :> IEnumerator
+
+
+   interface IEnumerable<'T> with 
+      member this.GetEnumerator() = 
+         new ListQueueEnumerator<'T> (q)  :> IEnumerator<'T>
+
+
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module Queue = 
+   
+   [<GeneralizableValue>]
+   [<CompiledName("Empty")>]
+   let empty<'T> = Queue<'T>.Empty
+
+   [<CompiledName("IsEmpty")>]
+   let isEmpty (queue:Queue<'T>) = 
+      queue.IsEmpty
+
+   [<CompiledName("IsEmpty")>]
+   let length (queue:Queue<'T>) = 
+      queue.Count
+
+   [<CompiledName("Head")>]
+   let head (queue:Queue<'T>) = 
+      queue.Head
+
+   [<CompiledName("Enqueue")>]
+   let enqueue (item:'T) (queue:Queue<'T>) =
+      queue.Enqueue item
+
+   [<CompiledName("Dequeue")>]
+   let dequeue (queue:Queue<'T>) =
+      queue.Dequeue()
+
+
+
+
+   

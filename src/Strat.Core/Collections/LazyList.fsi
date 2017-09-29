@@ -26,7 +26,7 @@ type LazyList<'T> =
    /// O(1). Returns a value indicating if this list is empty.
    member IsEmpty: bool
 
-   /// O(1). Returns the first item in the list. Throws an exception if the index is out of range.
+   /// O(1). Returns the first item in the list. Throws an exception if the list is empty.
    member Head: 'T
 
    /// O(1). Returns the first item in the list, or None if the list is empty.
@@ -51,7 +51,7 @@ type LazyList<'T> =
    member TryUncons: unit -> option<struct ('T * LazyList<'T>)>
 
  
- /// Functional operators for <c>LazyList<_></c>.
+/// Functional operators for <c>LazyList<_></c>.
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module LazyList = 
 
