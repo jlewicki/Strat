@@ -1,6 +1,8 @@
 namespace Strat.Collections.Primitives
 
 open System
+open System.Collections
+open System.Collections.Generic
 open Strat.Collections
 
 
@@ -51,19 +53,56 @@ module ListQueue =
       q.Count
 
 
+   let head (q: ListQueue<'T>) = 
+      if q.Count = 0 then invalidOp "Queue is empty"
+      else q.Left.Head
+
+
    let enqueue item (queue: ListQueue<'T>) = 
       let right = LazyList.cons item queue.Right
       let struct (left, right, prevaledLeft) = balance queue.Left right queue.PrevaledLeft
       newQueue (queue.Count + 1) left right prevaledLeft
 
-
    let dequeue (queue: ListQueue<'T>) = 
-      match queue.Left with
-      | LazyList.Empty -> 
+      if queue.Count = 0 then 
          invalidOp "Queue is empty"
-      | LazyList.Cons (head, rest) -> 
+      else
+         let struct (head, rest) = LazyList.uncons queue.Left
          let struct (left, right, prevaledLeft) = balance rest queue.Right queue.PrevaledLeft
          struct (head, newQueue (queue.Count - 1) left right prevaledLeft)
+
+
+   type ListQueueEnumerator<'T> (queue: ListQueue<'T>) = 
+      let notStarted() = 
+         raise <| new InvalidOperationException("The enumerator has not been started by a call to MoveNext")
+      let alreadyCompleted() = 
+         raise <| new InvalidOperationException("The enumerator has already completed.")
+      let mutable isStarted = false
+      let mutable currentQueue = queue
+
+      let current() =
+         if isStarted then queue |> head
+         else notStarted()
+      
+      let moveNext() =
+         if isStarted then 
+            if currentQueue.Count = 0 then alreadyCompleted()
+            else 
+               let struct (_, rest) = currentQueue |> dequeue
+               currentQueue <- rest
+               currentQueue.Count > 0
+         else
+             isStarted <- true
+             currentQueue.Count > 0
+
+      interface IEnumerator<'T> with
+         member x.Current = current()
+      interface IEnumerator with 
+         member x.Current = box (current())
+         member x.MoveNext() = moveNext()
+         member x.Reset() = currentQueue <- queue
+      interface IDisposable with 
+         member x.Dispose() = () 
 
 
 namespace Strat.Collections
