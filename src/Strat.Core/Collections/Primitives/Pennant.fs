@@ -5,7 +5,7 @@ open System.Collections
 open System.Collections.Generic
 
 
-// An implementation of a priority search pennants as described in the paper "A Simple Implementation Technique for 
+// An implementation of priority search pennants as described in the paper "A Simple Implementation Technique for 
 // Priority Search Queues" by R. Hinze.
 module Pennant = 
    // Set to true to assert that tree is always balanced.  
