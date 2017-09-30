@@ -29,6 +29,9 @@ module ListQueue =
       { Count=count; Left=left; Right=right; PrevaledLeft=prevaledLeft }
 
 
+   let empty<'T> : ListQueue<'T> = { Count=0; Left=LazyList.Empty; Right=LazyList.Empty; PrevaledLeft=LazyList.Empty }
+
+
    let rec rotate (left: LazyList<'T>) (right: LazyList<'T>) (prevaledLeft: LazyList<'T>) = 
       match left with
       | LazyList.Empty -> LazyList.cons right.Head prevaledLeft
@@ -47,14 +50,6 @@ module ListQueue =
          struct (newLeft, LazyList.empty, newLeft)
       | LazyList.Cons (_, prevaledRest) -> 
          struct (left, right, prevaledRest)  
-
-//    let rec ofList list = 
-//       let struct (count, left) = 
-//          (0, LazyList.empty) 
-//          |> List.foldBack (fun item (count, ll) -> 
-//             struct ( count + 1, ll |> LazyList.cons item)
-//          ) list 
-       
 
 
    let length (q: ListQueue<'T>) = 
@@ -173,7 +168,7 @@ module Queue =
    let isEmpty (queue:Queue<'T>) = 
       queue.IsEmpty
 
-   [<CompiledName("IsEmpty")>]
+   [<CompiledName("Length")>]
    let length (queue:Queue<'T>) = 
       queue.Count
 
@@ -188,6 +183,23 @@ module Queue =
    [<CompiledName("Dequeue")>]
    let dequeue (queue:Queue<'T>) =
       queue.Dequeue()
+   
+   [<CompiledName("OfSeq")>]
+   let ofSeq seq = 
+      seq |> Seq.fold (fun q item -> q |> enqueue item) Queue.Empty
+
+   [<CompiledName("OfList")>]
+   let ofList list = 
+      list |> List.fold (fun q item -> q |> enqueue item) Queue.Empty 
+
+   [<CompiledName("OfArray")>]
+   let ofArray array = 
+      array |> Array.fold (fun q item -> q |> enqueue item) Queue.Empty 
+
+   [<CompiledName("ToSeq")>]
+   let toSeq (queue:Queue<'T>) = 
+      queue :> seq<'T>
+
 
 
 

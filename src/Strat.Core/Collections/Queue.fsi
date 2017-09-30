@@ -38,12 +38,24 @@ module Queue =
    [<CompiledName("Empty")>]
    val empty<'T> : Queue<'T>
 
+   /// O(N): Returns a new queue containing the items in the specified array.
+   [<CompiledName("OfSeq")>]
+   val ofSeq: items:seq<'T> -> Queue<'T>
+
+   /// O(N): Returns a new queue containing the items in the specified array.
+   [<CompiledName("OfList")>]
+   val ofList: items:'T list -> Queue<'T>
+
+   /// O(N): Returns a new queue containing the items in the specified array.
+   [<CompiledName("OfArray")>]
+   val ofArray: items:'T[] -> Queue<'T>
+
    /// O(1). Returns a value indicating if the queue is empty.
    [<CompiledName("IsEmpty")>]
    val isEmpty: queue:Queue<'T> -> bool
 
    /// O(1). Returns the number of items in the queue.
-   [<CompiledName("IsEmpty")>]
+   [<CompiledName("Length")>]
    val length: queue:Queue<'T> -> int
 
    /// O(1). Returns the item at the front of the queue. Throws an exception if the queue is empty.
@@ -58,3 +70,7 @@ module Queue =
    /// an exception if the queue is empty.
    [<CompiledName("Dequeue")>]
    val dequeue: queue:Queue<'T> -> struct ('T * Queue<'T>)
+
+   /// O(1). Views the specified queue as a sequence.
+   [<CompiledName("ToSeq")>]
+   val toSeq: queue:Queue<'T> -> seq<'T>
