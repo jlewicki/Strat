@@ -85,7 +85,7 @@ module ListQueue =
       let mutable currentQueue = queue
 
       let current() =
-         if isStarted then queue |> head
+         if isStarted then currentQueue |> head
          else notStarted()
       
       let moveNext() =
@@ -199,6 +199,19 @@ module Queue =
    [<CompiledName("ToSeq")>]
    let toSeq (queue:Queue<'T>) = 
       queue :> seq<'T>
+
+   [<CompiledName("ToArray")>]
+   let toArray (queue:Queue<'T>) = 
+      let arr = Array.zeroCreate queue.Count
+      let mutable idx = 0
+      let mutable q = queue
+      while not q.IsEmpty do
+         let struct (head, rest) = q.Dequeue()
+         arr.[idx] <- head
+         idx <- idx + 1
+         q <- rest
+      arr
+      
 
 
 

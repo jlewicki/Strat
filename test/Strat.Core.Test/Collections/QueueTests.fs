@@ -125,3 +125,19 @@ module Queue =
       let should_throw_if_queue_is_empty() =
           Assert.Throws<InvalidOperationException>(Action(fun () -> 
             Queue.Empty |> Queue.head |> ignore)) |> ignore
+
+   
+   module ToArray =
+      [<Fact>]
+      let should_copy_elements_to_array() = 
+         let items = Array.init 1000 id |> Array.rev
+         let q = Queue.ofArray items
+         let arr = q |> Queue.toArray
+         Assert.Equal (q.Count, arr.Length)
+         Assert.Equal (q, arr)
+
+      [<Fact>]
+      let should_return_empty_array_if_queue_is_empty() = 
+          let arr = Queue.toArray Queue.empty
+          Assert.NotNull arr
+          Assert.Equal (0, arr.Length)

@@ -74,3 +74,7 @@ module Queue =
    /// O(1). Views the specified queue as a sequence.
    [<CompiledName("ToSeq")>]
    val toSeq: queue:Queue<'T> -> seq<'T>
+
+   /// O(N).  Creates a new array containing the elements in the specified queue.
+   [<CompiledName("ToArray")>]
+   val toArray: queue:Queue<'T> -> 'T[]
