@@ -217,6 +217,7 @@ let main argv =
       new BenchmarkSwitcher(
          [|
             typeof<PrioritySearchQueueBenchmarks>
+            typeof<LazyListBenchmarks>
          |])
    switcher.Run(argv) |> ignore
    0
