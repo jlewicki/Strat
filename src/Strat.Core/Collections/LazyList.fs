@@ -5,7 +5,7 @@ open System.Collections
 open System.Collections.Generic
 
 
-[<NoEquality; NoComparison>]
+[<Struct; NoEquality; NoComparison>]
 type internal LNode<'T> = 
    | Empty
    | Cons of 'T * LazyList<'T>

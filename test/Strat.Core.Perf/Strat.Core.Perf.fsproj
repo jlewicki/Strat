@@ -6,9 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="PersistentVector.fs" />
+    <Compile Include="FSharpx\PersistentVector.fs" />
+    <Compile Include="FSharpx\LazyList.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="PrioritySearchQueueBenchmarks.fs" />
+    <Compile Include="LazyListBenchmarks.fs" />
     <Compile Include="CollectionOps.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
