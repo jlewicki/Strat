@@ -53,25 +53,30 @@ module StateMachine =
          invalidOp <| msg
 
 
-   /// Invokes the transition handler, and returns an async of the result.
-   let inline runTransitionHandler (handler: TransitionHandler<_,_>) (transCtx: TransitionContext<_,_>) = 
-      match handler with 
-      | TransitionHandler.Sync handler -> async.Return (handler transCtx) 
-      | TransitionHandler.Async handler -> handler transCtx 
+   /// Defines functions to run state handlers.
+   module Runner =
+
+      /// Invokes the transition handler, and returns an async of the result.
+      let inline runTransitionHandler (handler: TransitionHandler<_,_>) (transCtx: TransitionContext<_,_>) = 
+         match handler with 
+         | TransitionHandler.Sync handler -> async.Return (handler transCtx) 
+         | TransitionHandler.Async handler -> handler transCtx 
 
 
-   /// Invokes the message handler, and returns an async of the result.
-   let inline runMessageHandler (handler: MessageHandler<_,_>) (msgCtx: MessageContext<_,_>) = 
-      match handler with 
-      | MessageHandler.Sync handler -> async.Return (handler msgCtx) 
-      | MessageHandler.Async handler -> handler msgCtx 
+      /// Invokes the message handler, and returns an async of the result.
+      let inline runMessageHandler (handler: MessageHandler<_,_>) (msgCtx: MessageContext<_,_>) = 
+         match handler with 
+         | MessageHandler.Sync handler -> async.Return (handler msgCtx) 
+         | MessageHandler.Async handler -> handler msgCtx 
 
 
-   /// Invokes the initial transition function, and returns an async of the result.
-   let inline runInitialTransition (initTransition: InitialTransition<'D>) (data: 'D) = 
-      match initTransition with 
-      | InitialTransition.Sync handler -> async.Return (handler data) 
-      | InitialTransition.Async handler -> handler data 
+      /// Invokes the initial transition function, and returns an async of the result.
+      let inline runInitialTransition (initTransition: InitialTransition<'D>) (data: 'D) = 
+         match initTransition with 
+         | InitialTransition.Sync handler -> async.Return (handler data) 
+         | InitialTransition.Async handler -> handler data 
+
+   open Runner
 
 
    let inline private withTransContextTransform transform transHandler = 
