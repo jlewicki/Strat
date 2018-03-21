@@ -117,11 +117,6 @@ module ToasterOvenExample =
    // Definition of the state tree.
    
    let newStateTree heater light = 
-      let heatingState = StateId "heating"
-      let toastingState = StateId "toasting"
-      let bakingState = StateId "baking"
-      let doorOpenState = StateId "doorOpen"
-
       StateTree.fromRoot (StateId "root") (Start.With heatingState) (Handle.With rootHandler)
          [ interior heatingState (Start.With toastingState) (heatingHandlers heater)
             [ leaf toastingState (toastingHandlers heater)

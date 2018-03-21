@@ -88,8 +88,8 @@ module StateTree =
       let lazyRoot = lazy root
       let _, tree = 
          childStates 
-         |> Seq.fold (fun (children,map) (CreateChild(_, createChild)) -> 
-            let lazyChild, tree = createChild (lazyRoot, map)
+         |> Seq.fold (fun (children,tree) (CreateChild(_, createChild)) -> 
+            let lazyChild, tree = createChild (lazyRoot, tree)
             lazyChild::children, tree
           ) (List.empty, { Root = root; States = Map.empty })
       ensureUniqueName rootStateName tree.States
