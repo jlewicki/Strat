@@ -1,73 +1,132 @@
-﻿namespace Strat.StateMachine
+﻿namespace rec Strat.StateMachine
 
-open System
+type StateId = string
+
+[<NoComparison; ReferenceEquality>]
+type State<'Data,'Message> = 
+   
+   | Root of
+      Id: StateId *
+      Handlers: StateHandler<'Data,'Message> * 
+      InitialTransition: InitialTransition<'Data>
+   
+   | Interior of
+      Id: StateId * 
+      ParentId: StateId *
+      Handlers: StateHandler<'Data,'Message> * 
+      InitialTransition: InitialTransition<'Data>
+   
+   | Leaf of 
+      Id: StateId * 
+      ParentId: StateId *
+      Handlers: StateHandler<'Data,'Message>
+   /// A terminal state. The state machine cannot transition out of this state. 
+   | Terminal of 
+      Parent: StateId * 
+      FromState: StateId *
+      Reason: option<StopReason>
+with
+   static member TerminalStateId =  
+      "[TerminalState]"
+
+   member this.Id = 
+      match this with
+      | Root (id, _, _) -> id
+      | Interior (id, _, _, _) -> id
+      | Leaf (id, _, _) -> id
+      | Terminal _ -> State<'Data,'Message>.TerminalStateId
+
+   member this.Handler = 
+      match this with
+      | Root (_, handler, _) -> handler
+      | Interior (id, _, handler, _) -> handler
+      | Leaf (id, _, handler) -> handler
+      | Terminal _ -> Handlers.emptyHandler
+      
+
+type [<NoComparison; NoEquality>] MessageHandler<'D,'M> =
+   | Sync of Handler: (MessageContext<'D,'M> -> MessageResult<'D,'M>) 
+   | Async of Handler: (MessageContext<'D,'M> -> Async<MessageResult<'D,'M>>)
 
 
-/// Defines functions for working with State<_,_> instances.
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module State =
-  
-   [<GeneralizableValue>]
-   let emptyMessageHandler = MessageHandler.Sync (fun _ -> MessageResult.Unhandled)
-   [<GeneralizableValue>]
-   let emptyTransitionHandler = TransitionHandler.Sync (fun transCtx -> transCtx.TargetData)
-   [<GeneralizableValue>]
-   let emptyHandler = 
-      { OnMessage = emptyMessageHandler
-        OnEnter = emptyTransitionHandler
-        OnExit = emptyTransitionHandler } 
+type [<NoComparison; NoEquality>] TransitionHandler<'D,'M> =
+   | Sync of Handler: (TransitionContext<'D,'M> -> 'D) 
+   | Async of Handler: (TransitionContext<'D,'M> -> Async<'D>)
 
 
-   // Returns the name of the state
-   let inline name (state:State<_,_>) = 
-      state.Name
+type [<NoComparison; NoEquality>] InitialTransition<'D> =
+   | Sync of Handler: ('D -> struct ('D * StateId))
+   | Async of Handler: ('D -> Async<struct ('D * StateId)>)
 
 
-   let inline ref (state:State<_,_>) = 
+type [<NoComparison; NoEquality>] StateHandler<'D,'M> = { 
+   OnMessage: MessageHandler<'D,'M>
+   OnEnter: TransitionHandler<'D,'M>
+   OnExit: TransitionHandler<'D,'M> 
+}
+
+
+type [<Struct; NoComparison; NoEquality>] MessageContext<'D,'M> (message:'M, data: 'D) =
+   
+   member this.Message = message
+   member this.Data = data
+ 
+   member this.GoTo( nextState: StateId, ?nextData:'D, ?action: TransitionHandler<'D,'M>) =  
+      let _nextData = defaultArg nextData this.Data
+      MessageResult.Transition(nextState, _nextData, action)
+
+   member this.Stay( ?nextData:'D ) : MessageResult<'D,'M> = 
+      let _nextData = defaultArg nextData this.Data
+      MessageResult.InternalTransition(_nextData)
+
+   member this.GoToSelf(?nextData:'D, ?action: TransitionHandler<'D,'M>) =
+      let _nextData = defaultArg nextData this.Data
+      MessageResult.SelfTransition(_nextData, action)
+
+   member this.Unhandled() : MessageResult<'D,'M> = 
+      MessageResult.Unhandled
+
+   member this.Stop(?reason: string, ?code: int) : MessageResult<'D,'M> = 
+      let stopReason = 
+         if reason.IsSome || code.IsSome then 
+            let _reason = defaultArg reason ""
+            let _code = defaultArg code -1
+            Some (StopReason (_reason, _code))
+         else None
+      MessageResult.Stop(stopReason)
+
+
+and [<Struct; NoComparison; NoEquality>] TransitionContext<'D,'M> = { 
+   SourceState: State<'D,'M>
+   SourceData: 'D
+   TargetState: State<'D,'M> 
+   TargetData: 'D
+   HandlingState: State<'D,'M>
+}
+
+
+and [<NoComparison; NoEquality>] MessageResult<'D,'M> = 
+   | Transition of NextState:StateId * NextData:'D * Action:option<TransitionHandler<'D,'M>>
+   | InternalTransition of NextData:'D
+   | SelfTransition of NextData:'D * Action:option<TransitionHandler<'D,'M>>
+   | Unhandled
+   | Stop of Reason: option<StopReason>
+   | InvalidMessage of Reason:string * Code:option<int>
+
+
+and [<Sealed>] StopReason (reason: string, code: int) =
+   member this.Reason = reason
+   member this.Code = code
+
+
+module State = 
+
+   let inline id (state: State<_,_>) = 
       state.Id
 
+   let inline handler (state: State<_,_>) = 
+      state.Handler 
 
-   /// Returns a value indicating if the specified state is a root state.
-   let isRoot state =  
-      match state with 
-      | Root _ -> true 
-      | _ -> false
-
-
-   /// Returns a value indicating if the specified state is a terminal state.
-   let isTerminal state = 
-      match state with
-      | Terminal _ -> true 
-      | _ -> false
-
-
-   /// Returns the parent state of the state, if available.
-   let parent state = 
-      match state with
-      | Root _ -> None
-      | Interior (_, parent, _, _) -> Some(parent)
-      | Leaf (_, parent, _) -> Some(parent)
-      | Terminal (parent, _, _) -> Some(parent)
-
-
-   /// Returns the handler functions for the state.
-   let handlers state = 
-      match state with
-      | Root (_, handlers, _) -> handlers
-      | Interior (_, _, handlers, _) -> handlers
-      | Leaf (_, _, handlers) -> handlers
-      | Terminal _ -> emptyHandler
-
-
-   let mapHandlers f state = 
-      match state with
-      | Root (name, handlers, initTransition) -> Root (name, f handlers, initTransition)
-      | Interior (name, parent, handlers, initTransition) -> Interior (name, parent, f handlers, initTransition)
-      | Leaf (name, parent, handlers) -> Leaf (name, parent, f handlers)
-      | Terminal _ as t -> t
-
-
-   /// Returns the initial transition for the state, if available.
    let initialTransition state =
       match state with
       | Root (_,_,initTransition) -> Some(initTransition)
@@ -75,52 +134,17 @@ module State =
       | _ -> None
 
 
-   /// Returns the root state (that is, the farthest ancestor) for the specified state
-   let rec root state = 
-      match state with 
-      | Interior (_, parent, _, _) ->  root parent
-      | Leaf (_, parent, _ ) ->  root parent
-      | Terminal (parent, _, _) -> root parent
-      | Root _ -> state
-
-
-   /// Returns a list containing all the ancestor states (in upwards order) of the state.
-   let ancestors state = 
-      List.unfold (function
-         | Interior (_, parent, _, _) -> Some (parent, parent)
-         | Leaf (_, parent, _ ) -> Some (parent, parent)
-         | Terminal (parent, _, _) -> Some (parent, parent)
-         | Root _ -> None ) state
-
-
-   /// Returns a list containing the state and all of its ancestor ancestor states, in upwards order.
-   let selfAndAncestors state = 
-      state::(ancestors state)
-
-
-   /// Returns a value indicating if the state is in the state with the specified name.  That is, if state, or any of its 
-   /// ancestor states, has the specified name. 
-   let isInState stateRef state = 
-      state  
-      |> selfAndAncestors  
-      |> List.exists (fun s -> s.Id = stateRef)    
-
-
-   /// Returns the state that is the least common ancestor between the two states (assumes states are different)
-   let internal leastCommonAncestor (state1:State<'D,'M>) (state2:State<'D,'M>) = 
-      let anc1, anc2 = (ancestors state1 |> List.rev), (ancestors state2 |> List.rev)
-      List.zip anc1 anc2
-      |> List.takeWhile (Object.ReferenceEquals)
-      |> List.last
-      |> fst
-
-
-   /// Throws an exception if parent is not the parent state of child. 
-   let internal ensureChild parentState childState = 
-      match childState |> parent with 
-      | Some parentOfChild ->
-         if parentOfChild <> parentState then
-            invalidOp <| sprintf "State %s is not a child state of %s" (name childState) (name parentState)
-      | None -> 
-         invalidOp <| sprintf "State %s is missing a parent state" (name childState)
-
+ 
+module Handlers =
+  
+   [<GeneralizableValue>]
+   let emptyMessageHandler = MessageHandler.Sync (fun _ -> MessageResult.Unhandled)
+  
+   [<GeneralizableValue>]
+   let emptyTransitionHandler = TransitionHandler.Sync (fun transCtx -> transCtx.TargetData)
+  
+   [<GeneralizableValue>]
+   let emptyHandler = 
+      { OnMessage = emptyMessageHandler
+        OnEnter = emptyTransitionHandler
+        OnExit = emptyTransitionHandler } 

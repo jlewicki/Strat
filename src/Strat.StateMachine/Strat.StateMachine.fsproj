@@ -2,25 +2,27 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
 
-    <!-- Nuget packaging -->
-    <PackageId>Strat.StateMachine</PackageId>
-    <PackageVersion>1.0.0-Beta1</PackageVersion>
-    <Authors>John Lewicki</Authors>
-    <Description>Hierarchical state machine for F#</Description>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Beta release</PackageReleaseNotes>
-    <PackageTags>state machine</PackageTags>
-
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE;DEBUG;NETSTANDARD2_0;DEBUG;NETSTANDARD2_0</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Types.fs" />
+    <Compile Include="State.fsi" />
     <Compile Include="State.fs" />
+    <Compile Include="StateTree.fsi" />
     <Compile Include="StateTree.fs" />
-    <Compile Include="Machine.fs" />
-    <Compile Include="Agent.fs" />
+    <Compile Include="Definition.fsi" />
     <Compile Include="Definition.fs" />
+    <Compile Include="Machine.fsi" />
+    <Compile Include="Machine.fs" />
+  </ItemGroup>
+
+  <ItemGroup />
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.3.4" />
   </ItemGroup>
 
 </Project>

@@ -7,8 +7,9 @@
 
    <ItemGroup>
       <Compile Include="Fixture.fs" />
+      <Compile Include="Tests\StateTests.fs" />
+      <Compile Include="Tests\StateTreeTests.fs" />
       <Compile Include="Tests/StateMachineTests.fs" />
-      <Compile Include="Tests/StateMachineAgentTests.fs" />
       <Compile Include="Examples/TurnstileExample.fs" />
       <Compile Include="Examples/ToasterOvenExample.fs" />
       <Compile Include="Examples/GameExample.fs" />

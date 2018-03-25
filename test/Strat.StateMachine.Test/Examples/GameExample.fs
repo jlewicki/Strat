@@ -18,9 +18,9 @@ module Game =
    type MessageContext = MessageContext<Data, Message>   
 
    // Names of the states in the state tree
-   let homeState = StateId "home"
-   let chooseScenarioState = StateId "chooseScenario"
-   let gameInProgressState = StateId "gameInProgress" 
+   let homeState = "home"
+   let chooseScenarioState = "chooseScenario"
+   let gameInProgressState = "gameInProgress" 
 
 
    module Transitions =
@@ -42,5 +42,5 @@ module Game =
    let tree = 
       StateTree.fromLeaves homeState 
          [ leaf homeState (Handle.With(homeMessageHandler))
-           leaf chooseScenarioState (Handle.With (State.emptyMessageHandler))
-           leaf gameInProgressState (Handle.With (State.emptyMessageHandler)) ]
+           leaf chooseScenarioState (Handle.With (Handlers.emptyMessageHandler))
+           leaf gameInProgressState (Handle.With (Handlers.emptyMessageHandler)) ]

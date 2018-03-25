@@ -1,26 +1,69 @@
 ﻿namespace Strat.StateMachine
 
 open System
-open Strat.StateMachine.State
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module StateMachine = 
+
+type [<NoEquality; NoComparison>] StateMachineContext<'D,'M> = { 
+   Data: 'D
+   State: State<'D,'M>
+   StateTree: StateTree<'D,'M> 
+}
+
+
+[<NoComparison>]
+type MessageHandled<'D,'M> = {
+   Message: 'M
+   PrevContext: StateMachineContext<'D,'M>
+   NextContext: StateMachineContext<'D,'M>
+   EnteredStates: List<State<'D,'M>>
+   ExitedStates: List<State<'D,'M>>
+}
+
+
+[<NoComparison>]
+type MessageProcessed<'D,'M> = 
+   | HandledMessage of MessageHandled<'D,'M>
+   | UnhandledMessage of Message: 'M
+   | InvalidMessage of Reason: string * Code:option<int> * Message: 'M
+
+
+module Machine =
+
+   module Run =
+      let inline transitionHandler (handler: TransitionHandler<_,_>) (transCtx: TransitionContext<_,_>) = 
+         match handler with 
+         | TransitionHandler.Sync handler -> async.Return (handler transCtx) 
+         | TransitionHandler.Async handler -> handler transCtx 
+
+      let inline messageHandler (handler: MessageHandler<_,_>) (msgCtx: MessageContext<_,_>) = 
+         match handler with 
+         | MessageHandler.Sync handler -> async.Return (handler msgCtx) 
+         | MessageHandler.Async handler -> handler msgCtx 
+
+      let inline initialTransition (initTransition: InitialTransition<'D>) (data: 'D) = 
+         match initTransition with 
+         | InitialTransition.Sync handler -> async.Return (handler data) 
+         | InitialTransition.Async handler -> handler data 
+
 
    /// Describes the target state of a transition
-   type private TransitionTarget<'D,'M> = 
+   type TransitionTarget<'D,'M> = 
       /// Transition is an internal.  The current state will not change, and no entry or exit handlers will be called.
-      | Internal
+      | CurrentState
       /// Transition is to a different state, or a self transition (i.e the current state is exited and re-entered).
-      | State of State<'D,'M>
+      | OtherState of State<'D,'M>
 
 
    // Helper function to construct TransitionContext record
-   let private mkTransitionContext sourceData sourceState targetData transTarget handlingState: TransitionContext<_,_> = 
-      let targetState = match transTarget with | Internal -> sourceState | State(targetState) -> targetState
-      { SourceData = sourceData; 
-        SourceState = sourceState;
-        TargetData = targetData; 
-        TargetState = targetState;
+   let mkTransitionContext sourceData sourceState targetData transTarget handlingState: TransitionContext<_,_> = 
+      let targetState = 
+         match transTarget with 
+         | CurrentState -> sourceState 
+         | OtherState targetState -> targetState
+      { SourceData = sourceData 
+        SourceState = sourceState
+        TargetData = targetData
+        TargetState = targetState
         HandlingState = handlingState }
 
 
@@ -40,70 +83,37 @@ module StateMachine =
               EnteredStates = List.ofSeq enteringStates }
 
 
-   /// Throws an exception of the root ancestor of the state is not the specified root state.
-   let private ensureRoot state (stateTree: StateTree<'D,'M>) = 
-      let stateRoot = state |> State.root
-      if stateRoot <> stateTree.Root then 
-         let msg = 
-            sprintf 
-               "State %s has a different root state (%s) than the expected root (%s)" 
-               (state.Name)
-               (stateRoot.Name)
-               (stateTree.Root.Name)
-         invalidOp <| msg
-
-
-   /// Defines functions to run state handlers.
-   module Runner =
-
-      /// Invokes the transition handler, and returns an async of the result.
-      let inline runTransitionHandler (handler: TransitionHandler<_,_>) (transCtx: TransitionContext<_,_>) = 
-         match handler with 
-         | TransitionHandler.Sync handler -> async.Return (handler transCtx) 
-         | TransitionHandler.Async handler -> handler transCtx 
-
-
-      /// Invokes the message handler, and returns an async of the result.
-      let inline runMessageHandler (handler: MessageHandler<_,_>) (msgCtx: MessageContext<_,_>) = 
-         match handler with 
-         | MessageHandler.Sync handler -> async.Return (handler msgCtx) 
-         | MessageHandler.Async handler -> handler msgCtx 
-
-
-      /// Invokes the initial transition function, and returns an async of the result.
-      let inline runInitialTransition (initTransition: InitialTransition<'D>) (data: 'D) = 
-         match initTransition with 
-         | InitialTransition.Sync handler -> async.Return (handler data) 
-         | InitialTransition.Async handler -> handler data 
-
-   open Runner
-
-
-   let inline private withTransContextTransform transform transHandler = 
+   let inline withTransContextTransform transform transHandler = 
       match transHandler with
       | TransitionHandler.Sync handle -> TransitionHandler.Sync (transform >> handle)
       | TransitionHandler.Async handle -> TransitionHandler.Async (transform >> handle)
 
-
-   let inline private withHandlingState state  = 
+   let inline withHandlingState state  = 
       fun transCtx -> { transCtx with HandlingState = state }
  
      
-   let private onEnterWithHandlingState state : TransitionHandler<_,_> =
-      let onEnter = (handlers state).OnEnter
+   let onEnterWithHandlingState state : TransitionHandler<_,_> =
+      let onEnter = (State.handler state).OnEnter
       onEnter |> withTransContextTransform (withHandlingState state)
 
 
-   let private onExitWithHandlingState state : TransitionHandler<_,_> =
-      let onExit = (handlers state).OnExit
+   let onExitWithHandlingState state : TransitionHandler<_,_> =
+      let onExit = (State.handler state).OnExit
       onExit |> withTransContextTransform (withHandlingState state)
 
-
+   
    // Determines the path between the two states, and returns the list of states exited, the least common ancestor
    // state, and the list of states entered 
-   let private statePath (state1: State<'D,'M>) (state2: State<'D,'M>) = 
-      let ancestors1 = ancestors state1 
-      let ancestors2 = ancestors state2
+   let statePath (state1: State<'D,'M>) (state2: State<'D,'M>) (stateTree: StateTree<'D, 'M>) = 
+      let ancestors1 = StateTree.ancestorStatesById state1.Id stateTree
+      let ancestors2 =
+         match state2 with
+         | Terminal (parentId, _, _) -> 
+            // Terminal state is 'transient' and not representd in the state tree, but its parent is,
+            // so we that to calculate the ancestor path.
+            StateTree.selfAndAncestorStatesById parentId stateTree
+         | _ -> 
+            StateTree.ancestorStatesById state2.Id stateTree
       let lca = 
          Seq.zip (ancestors1 |> List.rev) (ancestors2 |> List.rev)
          |> Seq.takeWhile (Object.Equals)
@@ -116,7 +126,7 @@ module StateMachine =
 
 
    // Compose the list of transition handlers into a single handler that will invoke each in turn.
-   let private composeHandlers (actions: List<TransitionHandler<'D,'M>>) : TransitionHandler<'D,'M> = 
+   let composeHandlers (actions: List<TransitionHandler<'D,'M>>) : TransitionHandler<'D,'M> = 
       actions 
       |> List.fold (fun prevResult action ->       
          match prevResult, action with
@@ -140,12 +150,12 @@ module StateMachine =
                   let! nextData = prevHandler transCtx
                   return! handler { transCtx with TargetData = nextData } 
                })
-      ) State.emptyTransitionHandler
+      ) Handlers.emptyTransitionHandler
 
-   
+
    // Returns an async yielding the result of entering the initial state (recursively descending the state tree)
    // of the state in the specified context.
-   let rec private enterInitialState 
+   let rec enterInitialState 
       (fromRoot: bool) 
       (stateTree: StateTree<'D,'M>)
       (transCtx:TransitionContext<'D,'M>) = 
@@ -153,14 +163,20 @@ module StateMachine =
       // Recursively enters each state indicated by running the initialTransition function.
       let rec enterInitialStateAcc stateTree transCtx = 
          async {
-            match initialTransition transCtx.TargetState with 
+            match transCtx.TargetState |> State.initialTransition with 
             | Some handler ->
-               let! struct (nextData, nextStateRef) = runInitialTransition handler transCtx.TargetData
-               let nextState = stateTree |> StateTree.findState nextStateRef
-               let handlers = handlers nextState
-               ensureChild transCtx.TargetState nextState
+               let! struct (nextData, nextStateId) = Run.initialTransition handler transCtx.TargetData
+               let nextState = 
+                  match stateTree |> StateTree.tryFindState nextStateId with
+                  | Some nextState -> nextState
+                  | _ -> 
+                     let msg = 
+                        sprintf "State %s returned state %s as an initial child state, but that state does not exist" 
+                                 transCtx.TargetState.Id 
+                                 nextStateId
+                     invalidOp msg
                let transCtx = {transCtx with TargetData = nextData; TargetState = nextState; HandlingState = nextState }
-               let! nextData = runTransitionHandler handlers.OnEnter transCtx
+               let! nextData = Run.transitionHandler nextState.Handler.OnEnter transCtx
                return! enterInitialStateAcc stateTree { transCtx with TargetData = nextData }
             | None -> 
                return transCtx
@@ -169,98 +185,96 @@ module StateMachine =
       async {
          // States from root to the next state specified in the context (inclusive)
          let enteringStates = 
-            if fromRoot then transCtx.TargetState |> selfAndAncestors |> List.rev 
+            if fromRoot then stateTree |> StateTree.selfAndAncestorStatesById transCtx.TargetState.Id |> List.rev 
             else List.empty
-         
          // Enter ancestor states
          let onEnterHandler = enteringStates |> List.map onEnterWithHandlingState |> composeHandlers
-         let! nextData = transCtx |> runTransitionHandler onEnterHandler
+         let! nextData = transCtx |> Run.transitionHandler onEnterHandler
          let transCtx = { transCtx with TargetData = nextData } 
-
          // Descend into initial states, entering each one
          return! enterInitialStateAcc stateTree transCtx 
       }
 
-
    // Handles a message by invoking OnMessage on the state and each of its ancestors, until the message has been
    // handled. Returns an async yielding the message result, next state machine state, the next data, and a 
    // transition action that should be invoked during the transition to the next state.
-   let private handleMessage 
+   let handleMessage 
       (message: 'M)
       (machineCtx:StateMachineContext<'D,'M>) : Async<struct (MessageResult<'D,'M> * TransitionTarget<'D,'M> * 'D * TransitionHandler<'D,'M>)> =
       
       let originalState = machineCtx.State
-      let rec handleMessageAcc msgCtx state = 
+      let tree = machineCtx.StateTree
+      let rec handleMessageAcc (msgCtx: MessageContext<'D,'M>) state = 
          async {
-            let handlers = handlers state
-            let! msgResult = runMessageHandler handlers.OnMessage msgCtx
+            let handlers = state |> State.handler
+            let! msgResult = Run.messageHandler handlers.OnMessage msgCtx
             match msgResult with 
             | Transition (stateName, nextData, optAction) -> 
-               let action = defaultArg optAction State.emptyTransitionHandler
-               return struct (msgResult, State (machineCtx.StateTree |> StateTree.findState stateName), nextData, action)
+               let action = defaultArg optAction Handlers.emptyTransitionHandler
+               return struct (msgResult, OtherState (machineCtx.StateTree |> StateTree.findState stateName), nextData, action)
             | SelfTransition (nextData, optAction) -> 
-               let action = defaultArg optAction State.emptyTransitionHandler
+               let action = defaultArg optAction Handlers.emptyTransitionHandler
                // Note that for a self-transition, we transition to the current state for the state machine, not the 
                // handling state. Perhaps that is slightly arbitrary, but I believe that is the most semantically 
                // consistent behavior.
-               return struct (msgResult, State(originalState), nextData, action)
+               return struct (msgResult, OtherState originalState, nextData, action)
             | InternalTransition nextData -> 
-               return struct (msgResult, Internal, nextData, State.emptyTransitionHandler)
+               return struct (msgResult, CurrentState, nextData, Handlers.emptyTransitionHandler)
             | MessageResult.Stop optReason ->
-               let terminalState = Terminal(machineCtx.StateTree.Root, (StateId state.Name), optReason)
-               return struct (msgResult, State(terminalState), msgCtx.Data, emptyTransitionHandler)
+               let terminalState = Terminal(tree |> StateTree.rootState |> State.id, state.Id, optReason)
+               return struct (msgResult, OtherState terminalState, msgCtx.Data, Handlers.emptyTransitionHandler)
             | Unhandled ->
-               match State.parent state with
-               | Some(parent) -> 
+               match StateTree.parentState state tree with
+               | Some parent -> 
                   // Let parent state try and handle the message
                   return! handleMessageAcc msgCtx parent
                | None -> 
                   // No more parents available, so just stay in current state
-                  return struct (msgResult, Internal, msgCtx.Data, State.emptyTransitionHandler)
+                  return struct (msgResult, CurrentState, msgCtx.Data, Handlers.emptyTransitionHandler)
             | MessageResult.InvalidMessage(_) ->
                // A state has indicated the message was not appropriate, so just stay in current state.
-               return struct (msgResult, Internal, msgCtx.Data, State.emptyTransitionHandler)
+               return struct (msgResult, CurrentState, msgCtx.Data, Handlers.emptyTransitionHandler)
          }
-      handleMessageAcc { Message=message; Data=machineCtx.Data} machineCtx.State
+      handleMessageAcc (MessageContext<'D,'M> ( message, machineCtx.Data)) machineCtx.State
 
 
    // Creates an action that is the composition of the various actions (exiting, transition, entering, etc.) that must
    // be invoked when transitioning between the specified states. Returns the states to be exited, the states to be
    // entered, and the composite action.
-   let private buildTransition 
+   let buildTransition 
       (machineCtx:StateMachineContext<'D,'M>) 
       (targetState:TransitionTarget<'D,'M>) 
       (transitionAction: TransitionHandler<'D,'M>) =
 
       match targetState with
-      | Internal ->
+      | CurrentState ->
          // Internal transition, but we still need to invoke the provided transitionAction.
          let compositeAction transCtx = async {
-            let! nextData = runTransitionHandler transitionAction transCtx
+            let! nextData = Run.transitionHandler transitionAction transCtx
             let nextTransCtx  = { transCtx with TargetData = nextData } 
             return nextTransCtx 
          }
          List.empty, List.empty, compositeAction
-      | State(nextState) ->
+      | OtherState nextState ->
          let state = machineCtx.State
-         let struct (exitingStates, lca, enteringStates) = statePath state nextState
+         let tree = machineCtx.StateTree
+         let struct (exitingStates, lca, enteringStates) = statePath state nextState tree
          let exitingHandler = exitingStates |> List.map onExitWithHandlingState |> composeHandlers
          let enteringHandler = enteringStates |> List.map onEnterWithHandlingState |> composeHandlers
          let transitionAtLcaHandler = transitionAction |> withTransContextTransform (withHandlingState lca)
          let transitionHandler = composeHandlers [exitingHandler; transitionAtLcaHandler; enteringHandler]
          let compositeAction transCtx = async {
-            let! nextData = runTransitionHandler transitionHandler transCtx
+            let! nextData = Run.transitionHandler transitionHandler transCtx
             let nextTransCtx  = { transCtx with TargetData = nextData } 
             return! enterInitialState false machineCtx.StateTree nextTransCtx 
          } 
          exitingStates, enteringStates, compositeAction
 
 
-
    // Returns an async that transitions between the previous and next states, performing all relevant actions (exit, 
    // transition, and enter actions). Yields the states that were exited, the states that were entered, and the final 
    // transition context.
-   let private doTransition 
+   let doTransition 
       (machineCtx:StateMachineContext<'D,'M>) 
       (nextData: 'D)
       (nextState: TransitionTarget<'D,'M>)
@@ -269,41 +283,40 @@ module StateMachine =
          // Build a function that encapsulates the chain of functions that need to be called during the 
          // transition to the new state
          let exiting, entering, transition = buildTransition machineCtx nextState transitionAction
-
          // Invoke the transition function, which yields the final context and state
          let! transCtx = transition (mkTransitionContext machineCtx.Data machineCtx.State nextData nextState machineCtx.State)
-         // TODO: is this overkill?
-         ensureRoot transCtx.TargetState machineCtx.StateTree
          return struct (exiting, entering, transCtx)
       }
 
 
-   /// Yields a new state machine context resulting from entering the specified initial state (or root state if not 
-   /// provided) with the specified initial data.
    let initializeContext 
       (stateTree: StateTree<'D,'M>) 
       (initialData:'D) 
-      (initialStateRef: option<StateId>) : Async<StateMachineContext<'D,'M>> = 
+      (initialStateId: option<StateId>) : Async<StateMachineContext<'D,'M>> = 
       async { 
-         let _initialStateRef = defaultArg initialStateRef (StateId stateTree.Root.Name) 
-         let initialState = stateTree |> StateTree.findState _initialStateRef 
-
+         let root = stateTree |> StateTree.rootState
+         let _initialStateId = defaultArg initialStateId root.Id 
+         let initialState = stateTree |> StateTree.findState _initialStateId 
+         let transCtx = mkTransitionContext initialData root initialData (OtherState initialState) initialState 
          // Descend into the initial state, if the state machine was initialized with a composite state.  We're 
          // starting from scratch, so descend from the root state.
-         let transCtx = mkTransitionContext initialData stateTree.Root initialData (TransitionTarget.State(initialState)) initialState 
-         let! transCtx = enterInitialState true stateTree transCtx 
-         // TODO: is this overkill?
-         ensureRoot transCtx.TargetState stateTree
-         
+         let! transCtx = enterInitialState true stateTree transCtx
          return { State = transCtx.TargetState; Data = transCtx.TargetData; StateTree = stateTree }   
+      }
+   
+
+   let processMessage (message: 'M) (smContext:StateMachineContext<'D,'M>) : Async<MessageProcessed<'D,'M>> = 
+      async {
+         // Let the current state handle the message
+         let! struct (msgResult, nextState, nextData, transitionAction) = handleMessage message smContext
+         // Perform the transition to the new state
+         let! struct (exited, entered, transCtx) = doTransition smContext nextData nextState transitionAction
+         // Return record describing how the message was handled
+         let nextSmCtx = { smContext with State = transCtx.TargetState; Data = transCtx.TargetData }
+         return mkMessageProcessed msgResult message smContext nextSmCtx exited entered
       }
 
 
-   /// <summary> 
-   /// Yields the result of transitionining the specified state machine context to a stopped (terminal) state, 
-   /// optionally providing a reason the machine is being stopped.
-   /// </summary> 
-   /// <exception cref="System.ArgumentException">If the context is already in a terminal state.</exception> 
    let stop 
       (smContext: StateMachineContext<'D,'M>) 
       (reason: option<StopReason>) : Async<StateMachineContext<'D,'M>> = 
@@ -314,22 +327,9 @@ module StateMachine =
             return smContext
          | _ ->
             // Transition to terminal state, so that current state is exited before state machine is stopped. 
-            let terminalState = Terminal(smContext.StateTree.Root, StateId (smContext.State.Name), reason) 
-            let! struct (_, _, transCtx) = doTransition smContext smContext.Data (State(terminalState)) State.emptyTransitionHandler
+            let root = smContext.StateTree |> StateTree.rootState
+            let terminalState = Terminal(root.Id, smContext.State.Id, reason) 
+            let handler = Handlers.emptyTransitionHandler
+            let! struct (_, _, transCtx) = doTransition smContext smContext.Data (OtherState terminalState) handler
             return { smContext with State = transCtx.TargetState; Data = transCtx.TargetData }
-      }
-
-
-   /// Yields the result of processing the message within the specified machine context.
-   let processMessage (message: 'M) (smContext:StateMachineContext<'D,'M>) : Async<MessageProcessed<'D,'M>> = 
-      async {
-         // Let the current state handle the message
-         let! struct (msgResult, nextState, nextData, transitionAction) = handleMessage message smContext
-                    
-         // Perform the transition to the new state
-         let! struct (exited, entered, transCtx) = doTransition smContext nextData nextState transitionAction
-
-         // Return record describing how the message was handled
-         let nextSmCtx = { smContext with State = transCtx.TargetState; Data = transCtx.TargetData }
-         return mkMessageProcessed msgResult message smContext nextSmCtx exited entered
       }
