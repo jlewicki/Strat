@@ -127,6 +127,8 @@ module Vector =
          i <- i + 1
       new Vector<'T> (tt.ToPersistentTrie())
 
+   let inline add item (v: Vector<'T>) =
+      v.Add item
 
    [<CompiledName("Append")>]
    let append (l1: Vector<'T>) (l2: Vector<'T>) =

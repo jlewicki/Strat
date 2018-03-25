@@ -77,6 +77,9 @@ module Vector =
    /// for each index on the vector.
    [<CompiledName("Init")>]
    val init : count:int -> f:(int -> 'T) -> Vector<'T>
+   
+   /// O(lg32N). Returns a new vector by adding the specified item at the end of the vector.
+   val inline add: item:'T -> Vector<'T> -> Vector<'T>
 
    /// O(N+M). Returns a new vector that contains the elements of the first vector,  followed by the elements the second vector.
    [<CompiledName("Append")>]
