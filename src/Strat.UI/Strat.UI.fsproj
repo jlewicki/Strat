@@ -7,10 +7,15 @@
   <ItemGroup>
     <Compile Include="IObservableProperty.fs" />
     <Compile Include="ReadOnlyProperty.fs" />
+    <Compile Include="StateMachine\StateMachineAgent.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Reactive" Version="3.1.1" />
+    <PackageReference Include="System.Reactive" Version="4.0.0-preview00001" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Strat.StateMachine\Strat.StateMachine.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
