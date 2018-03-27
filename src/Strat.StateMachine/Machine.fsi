@@ -26,7 +26,13 @@ type MessageHandled<'D,'M> = {
    EnteredStates: List<State<'D,'M>>
    /// The states that were exited when the message was processed, in the order they were exited.
    ExitedStates: List<State<'D,'M>>
-}
+} 
+with
+   /// The state after the message was processed
+   member NextState: State<'D,'M>
+   /// The data after the message was processed
+   member NextData: 'D
+
 
 
 /// Describes how a message was processed (possibly unsuccessfully) by a state machine.

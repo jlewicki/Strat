@@ -1,9 +1,11 @@
 ﻿namespace Strat.StateMachine
 
-/// Type that unique identifies a state, withing the tree of states for a state machine.
+/// Type that unique identifies a state, within the tree of states for a state machine.
 type StateId = string
 
 
+/// Represents a state, within the tree of states for a state machine, that handles messages of the specified type
+/// and process data of the specified type.
 type State<'Data,'Message> =
    /// Root state of a state tree
    | Root of 
@@ -36,24 +38,6 @@ type State<'Data,'Message> =
    member Handler: StateHandler<'Data, 'Message>
 
 
-and [<NoComparison; NoEquality>] 
-   MessageHandler<'D,'M> =
-   | Sync of Handler: (MessageContext<'D,'M> -> MessageResult<'D,'M>) 
-   | Async of Handler: (MessageContext<'D,'M> -> Async<MessageResult<'D,'M>>)
-
-
-and [<NoComparison; NoEquality>] 
-   TransitionHandler<'D,'M> =
-   | Sync of Handler: (TransitionContext<'D,'M> -> 'D) 
-   | Async of Handler: (TransitionContext<'D,'M> -> Async<'D>)
-
-
-and [<NoComparison; NoEquality>] 
-   InitialTransition<'D> =
-   | Sync of Handler: ('D -> struct ('D * StateId))
-   | Async of Handler: ('D -> Async<struct ('D * StateId)>)
-
-
 /// The handling functions the define the behavior of a state.
 and [<NoComparison; NoEquality>] 
    StateHandler<'D,'M> = { 
@@ -66,17 +50,65 @@ and [<NoComparison; NoEquality>]
    }
 
 
-/// Describes the possible results when OnMessage is called on a state.
+/// Describes the function that is called to process a message, in both synchronous and asynchronous variations. The
+/// function is passed a message context describing the message that arrived, and yields a message result describing
+/// what state transition should occur (if any). 
 and [<NoComparison; NoEquality>] 
-   MessageResult<'D,'M> = 
-   | Transition of NextState:StateId * NextData:'D * Action:option<TransitionHandler<'D,'M>>
-   | InternalTransition of NextData:'D
-   | SelfTransition of NextData:'D * Action:option<TransitionHandler<'D,'M>>
-   | Unhandled
-   | Stop of Reason: option<StopReason>
-   | InvalidMessage of Reason:string * Code:option<int>
+   MessageHandler<'D,'M> =
+   | Sync of Handler: (MessageContext<'D,'M> -> MessageResult<'D,'M>) 
+   | Async of Handler: (MessageContext<'D,'M> -> Async<MessageResult<'D,'M>>)
 
 
+/// Describes the function that is called on entering or leaving a state, in both synchronous and asynchronous
+/// variations. The function is passed a transition context describing the transition taking place, and yields an
+/// updated data instance. 
+and [<NoComparison; NoEquality>] 
+   TransitionHandler<'D,'M> =
+   | Sync of Handler: (TransitionContext<'D,'M> -> 'D) 
+   | Async of Handler: (TransitionContext<'D,'M> -> Async<'D>)
+
+
+/// Describes the function that is called when an interior state is being entered, in both synchronous and asynchronous
+/// variations. The function is passed the current data instabnce and yields an updated data instance and the child
+/// state that should become the current state. 
+and [<NoComparison; NoEquality>] 
+   InitialTransition<'D> =
+   | Sync of Handler: ('D -> struct ('D * StateId))
+   | Async of Handler: ('D -> Async<struct ('D * StateId)>)
+
+
+/// Describes the contextual information available to states as they handle messages.
+and [<Struct; NoComparison; NoEquality>] MessageContext<'D,'M> =
+   new: message:'M * data:'D -> MessageContext<'D,'M>
+   /// The message to be processed b 
+   member Message: 'M
+   member Data: 'D
+
+   /// Returns a message result indicating that a transition to the specified state should occur, optionally updating
+   /// the state data.
+   member GoTo: nextState: StateId * ?nextData:'D * ?action: TransitionHandler<'D,'M> -> MessageResult<'D,'M>
+
+   /// Returns a message result indicating that an internal transition should occur, optionally updating the state data.
+   /// An internal transition means that the current state will not change, and no entry and exit handlers will be 
+   /// called. 
+   member Stay: ?nextData:'D -> MessageResult<'D,'M>
+
+   /// Returns a message result indicating that a self-transition should occur, optionally updating the state data. A 
+   /// self-transition means that the current state is exited and re-entered, calling the handler functions for the 
+   /// state. By current, we mean the current state of the state machine, not necessarily the state (which could be an
+   /// ancestor state of the current state) that calls this method.
+   member GoToSelf: ?nextData:'D * ?action: TransitionHandler<'D,'M> -> MessageResult<'D,'M>
+
+   /// Returns a message result indicating the message could not be handled by a state, and that any ancestor states 
+   /// should be given an opportunity to handle the message.
+   member Unhandled: unit -> MessageResult<'D,'M>
+
+   /// Returns a message result indicating that the state machine should transition to the terminal state, and 
+   /// stop all further message processing.
+   member Stop: ?reason: string * ?code: int -> MessageResult<'D,'M>
+
+
+/// Describes a state transition from a source state and data to a target state and data. 
 and [<Struct; NoComparison; NoEquality>] 
    TransitionContext<'D,'M> = { 
       /// The source state for the transition.
@@ -94,37 +126,26 @@ and [<Struct; NoComparison; NoEquality>]
    }
 
 
-and [<Struct; NoComparison; NoEquality>] MessageContext<'D,'M> =
-   new: message:'M * data:'D -> MessageContext<'D,'M>
-   /// The message to be processed b 
-   member Message: 'M
-   member Data: 'D
-
-   /// Returns a message result indicating that a transition to the specified state should occur, optionally updating
-   /// the state data.
-   member GoTo: nextState: StateId * ?nextData:'D * ?action: TransitionHandler<'D,'M> -> MessageResult<'D,'M>
-
-   /// Returns a message result indicating that an internal transition should occur, optionally updating the state data.
-   /// An internal transition means that the current state will not change, and no entry and exit handlers will be 
-   /// called. 
-   member Stay: ?nextData:'D -> MessageResult<'D,'M>
-
-   /// Returns a message result indicating that an self-transition should occur, optionally updating the state data. A 
-   /// self-transition means that the current state is exited and re-entered, calling the handler functions for the 
-   /// state. By current, we mean the current state of the state machine, not necessarily the state (which could be an
-   /// ancestor state of the current state) that calls this method.
-   member GoToSelf: ?nextData:'D * ?action: TransitionHandler<'D,'M> -> MessageResult<'D,'M>
-
-   /// Returns a message result indicating the message could not be handled by a state, and that any ancestor states 
-   /// should be given an opportunity to handle the message.
-   member Unhandled: unit -> MessageResult<'D,'M>
-
-   /// Returns a message result indicating that the state machine should tranmsition to the terminated state, and 
-   /// stop all further message processing.
-   member Stop: ?reason: string * ?code: int -> MessageResult<'D,'M>
+/// Describes the possible results when OnMessage is called on a state.
+and [<NoComparison; NoEquality>] 
+   MessageResult<'D,'M> = 
+   /// A transition to the specified state should occur, optionally updating the state data.
+   | Transition of NextState:StateId * NextData:'D * Action:option<TransitionHandler<'D,'M>>
+   /// An internal transition should occur, optionally updating the state data. An internal transition means that the 
+   /// current state will not change, and no entry and exit handlers will be called. 
+   | InternalTransition of NextData:'D
+   /// A self-transition should occur, optionally updating the state data. A self-transition means that the current
+   /// state is exited and re-entered, calling the handler functions for the state.
+   | SelfTransition of NextData:'D * Action:option<TransitionHandler<'D,'M>>
+   /// The message could not be handled by a state, and that any ancestor states should be given an opportunity to
+   /// handle the message.
+   | Unhandled
+   // The state machine should transition to the terminal state, and stop all further message processing.
+   | Stop of Reason: option<StopReason>
+   | InvalidMessage of Reason:string * Code:option<int>
 
 
-/// Describes why state machine was stopped.
+/// Describes why the state machine was stopped.
 and [<Sealed>] StopReason =
    new: reason: string * code: int -> StopReason
    member Reason: string

@@ -17,7 +17,9 @@ type MessageHandled<'D,'M> = {
    NextContext: StateMachineContext<'D,'M>
    EnteredStates: List<State<'D,'M>>
    ExitedStates: List<State<'D,'M>>
-}
+} with
+   member this.NextState = this.NextContext.State
+   member this.NextData = this.NextContext.Data
 
 
 [<NoComparison>]

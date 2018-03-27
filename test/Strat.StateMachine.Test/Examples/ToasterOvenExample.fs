@@ -1,6 +1,7 @@
-﻿namespace Strat.StateMachine
+﻿namespace Strat.StateMachine.Test.Examples
 
 open Xunit
+open Strat.StateMachine
 open Strat.StateMachine.Definition
 
 
@@ -24,6 +25,7 @@ module ToasterOvenExample =
    // Shortcut alias
    type MessageContext = MessageContext<Data, Message>
    type TransitionContext = TransitionContext<Data, Message>
+   type StateMachineContext = StateMachineContext<Data, Message>
 
    // Names of the states in the state tree
    let heatingState = "heating"
@@ -152,36 +154,35 @@ module ToasterOvenExample =
 
    let initData = { IsLampOn = false; ToastColor = "Light"; BakingTemp = 300 }
 
+   let initContext state =
+      let tree, heater, light = newStateTreeWithStubs()
+      (Machine.initializeContext tree initData (Some state) |> Async.RunSynchronously), heater, light
 
-   //[<Fact>]
-   //let CloseDoor_When_DoorOpen_Should_Transition_To_Heating() = 
-   //   let stateTree, heater, light = newStateTreeWithStubs()
-   //   use oven = StateMachineAgent.startNewAgentIn doorOpenState stateTree initData 
-
-   //   let ctx = oven.SendMessage CloseDoor
-
-   //   Assert.True( ctx.State |> State.isInState heatingState )
-   //   Assert.True( heater.IsOn )
-
-
-   //[<Fact>]
-   //let Bake_When_Heating_Should_Transition_To_Baking() = 
-   //   let stateTree, heater, light = newStateTreeWithStubs()
-   //   use oven = StateMachineAgent.startNewAgentIn heatingState stateTree initData 
-      
-   //   let ctx = oven.SendMessage Bake
-      
-   //   Assert.True( ctx.State |> State.isInState bakingState )
-   //   Assert.Equal(heater.Temp, ctx.Data.BakingTemp)
+   [<Fact>]
+   let CloseDoor_when_DoorOpen_should_transition_to_Heating() = 
+      let smCtx, heater, _ = initContext doorOpenState
+      match Machine.processMessage CloseDoor smCtx |> Async.RunSynchronously with
+      | HandledMessage handled ->
+         Assert.True (smCtx.StateTree |> StateTree.isSelfOrAncestor handled.NextState.Id heatingState )
+         Assert.True( heater.IsOn )
+      | _ -> invalidOp "Message should have been handled"
 
 
-   //[<Fact>]
-   //let OpenDoor_When_Heating_Should_Transition_To_DoorOpen() = 
-   //   let stateTree, heater, light = newStateTreeWithStubs()
-   //   use oven = StateMachineAgent.startNewAgentIn heatingState stateTree initData 
-      
-   //   let ctx = oven.SendMessage OpenDoor
-      
-   //   Assert.True( ctx.State |> State.isInState doorOpenState )
-   //   Assert.True( light.IsOn )
-      
+   [<Fact>]
+   let Bake_When_Heating_Should_Transition_To_Baking() = 
+      let smCtx, heater, _ = initContext heatingState
+      match Machine.processMessage Bake smCtx |> Async.RunSynchronously with
+      | HandledMessage handled ->
+         Assert.True (smCtx.StateTree |> StateTree.isSelfOrAncestor handled.NextState.Id bakingState )
+         Assert.Equal(heater.Temp, handled.NextData.BakingTemp)
+      | _ -> invalidOp "Message should have been handled"
+
+
+   [<Fact>]
+   let OpenDoor_when_Heating_should_transition_to_DoorOpen() = 
+      let smCtx, _, light = initContext heatingState
+      match Machine.processMessage OpenDoor smCtx |> Async.RunSynchronously with
+      | HandledMessage handled ->
+         Assert.True (smCtx.StateTree |> StateTree.isSelfOrAncestor handled.NextState.Id doorOpenState )
+         Assert.True light.IsOn
+      | _ -> invalidOp "Message should have been handled"

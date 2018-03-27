@@ -14,8 +14,8 @@ type Start private () =
 type Handle private() = 
    static member With
       ( ?onMessage: MessageHandler<'D,'M>,
-         ?onEnter: TransitionHandler<'D,'M>,
-         ?onExit: TransitionHandler<'D,'M> ) : StateHandler<'D,'M> =
+        ?onEnter: TransitionHandler<'D,'M>,
+        ?onExit: TransitionHandler<'D,'M> ) : StateHandler<'D,'M> =
       { OnEnter = defaultArg onEnter Handlers.emptyTransitionHandler
         OnMessage = defaultArg onMessage Handlers.emptyMessageHandler
         OnExit = defaultArg onExit Handlers.emptyTransitionHandler }
@@ -50,14 +50,20 @@ module StateTree =
       tree
 
    let leaf (id: StateId) (handler:StateHandler<'D,'M>) : CreateChildState<'D,'M> = 
-      if String.IsNullOrWhiteSpace id then nullArg "id"
+      if String.IsNullOrWhiteSpace id then 
+         nullArg "id"
       CreateChild (ChildStateType.LeafChild, fun (parent,tree) -> 
          let state = Leaf (id, parent.Id, handler)
          let tree = tree |> StateTree.Build.addState state
          state, tree)
       
-   let interior (id: StateId) (handler: StateHandler<'D,'M>) (initialTransition: InitialTransition<'D>) (childStates: seq<CreateChildState<'D,'M>>) : CreateChildState<'D,'M> = 
-      if String.IsNullOrWhiteSpace id then nullArg "id"
+   let interior 
+      (id: StateId) 
+      (handler: StateHandler<'D,'M>) 
+      (initialTransition: InitialTransition<'D>) 
+      (childStates: seq<CreateChildState<'D,'M>>) : CreateChildState<'D,'M> = 
+      if String.IsNullOrWhiteSpace id then 
+         nullArg "id"
       CreateChild (ChildStateType.LeafChild, fun (parent,tree) -> 
          let state = Interior (id, parent.Id, handler, initialTransition)
          let tree = tree |> StateTree.Build.addState state
