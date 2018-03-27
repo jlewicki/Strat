@@ -33,6 +33,7 @@ type CreateFragmentStateView
 type StateViewTree = list<ActivityStateView>
 
 
+/// Describes a view (activity or fragment) that can be used to display a state view.
 type ViewInfo =
    | Activity of ActivityViewInfo
    | Fragment of FragmentViewInfo

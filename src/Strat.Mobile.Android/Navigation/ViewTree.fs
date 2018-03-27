@@ -105,6 +105,8 @@ module ViewTree =
       (childFragmentCreators: list<CreateFragmentStateView>) =
       CreateFragmentStateView(fun (resolveFragManager: FragmentManager->FragmentManager) parentContainerViewId ->
          let navInfo = FragmentViewInfo (stateId, typeof<'TFragment>, parentContainerViewId, resolveFragManager)
+         // Returns the fragment manager of fragment associated with this fragmen state view. Child fragments
+         // for the child fragment state views can be placed in this fragment manager.
          let resolveFragManagerForChildren fragManager = 
             let fragManager = resolveFragManager fragManager
             let fragment = fragManager.FindFragmentByTag ("Fragment_" + stateId)
@@ -121,6 +123,8 @@ module ViewTree =
       (viewTree: StateViewTree) 
       (stateTree: StateTree<'D,'M>) : StateTree<'D,'M> = 
 
+      // Descend the tree of fragment views, and add an OnEnter handler to the corresponding state that
+      // will display the fragment when the state is entered.  
       let rec mixinFragmentViews (fragmentViews: list<FragmentStateView>) (stateTree: StateTree<'D,'M>) =
          fragmentViews
          |> List.fold (fun stateTree fragmentStateView -> 

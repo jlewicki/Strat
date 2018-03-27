@@ -1,4 +1,4 @@
-﻿namespace DroidApp.Common.DI.SimpleInjector
+﻿namespace Strat.Mobile.Android.DI.SimpleInjector
 
 open System
 open System.Collections.Generic
