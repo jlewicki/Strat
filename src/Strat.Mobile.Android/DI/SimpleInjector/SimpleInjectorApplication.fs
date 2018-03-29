@@ -34,16 +34,23 @@ type SimpleInjectorApplication(javaRef: IntPtr, transfer: JniHandleOwnership) =
       let reg = container.GetRegistration(this.GetType(), true).Registration
       reg.InitializeInstance(this)
 
+
+   member this.Container = 
+      _container
+
+   /// Subclasses can override to add services to the container.  The subclass *must* invoke the base implementation.
    abstract RegisterServices: container: Container -> unit
    default this.RegisterServices container =
+      container.RegisterInstance<Application>(this)
       container.RegisterInstance<IChildContainerFactory<Fragment>>(_fragmentContainerFactory)
  
+
    member private this.CreateContainer() = 
       let container = new Container()
+
+      // Add a behavior to the container that enables property injection
       container.Options.PropertySelectionBehavior <- new InjectAttributePropertySelectionBehavior()
       
-      container.RegisterInstance<Application>(this)
-
       // Let any packages decorating the application register services with the container
       this.GetType().GetCustomAttributes(typeof<ContainerPackageAttribute>, true)
       |> Array.iter (fun oAttr -> 

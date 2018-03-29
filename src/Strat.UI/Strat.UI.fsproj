@@ -7,7 +7,7 @@
   <ItemGroup>
     <Compile Include="IObservableProperty.fs" />
     <Compile Include="ReadOnlyProperty.fs" />
-    <Compile Include="StateMachine\StateMachineAgent.fs" />
+    <Compile Include="StateMachine\StateMachine.fs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -9,29 +9,12 @@ open Android.Content
 open Strat.Mobile.Android
 
 
-// Keeps track of the current activity as activities start and resume.
-type CurrentActivityActivityLifecycleCallbacks() = 
-   inherit ActivityLifecycleCallbacksBase()
-   let _navigationActivitySubject = new BehaviorSubject<option<Activity>> (None)
-   let _navigationActivity = _navigationActivitySubject.Where(Option.isSome).Select(Option.get)
-   member this.CurrentActivity : option<Activity> = 
-      _navigationActivitySubject.Value
-   member this.CurrentActivityObservable : IObservable<Activity>  = 
-      _navigationActivity
-   override this.OnActivityStarted activity =
-      _navigationActivitySubject.OnNext (Some activity)
-   override this.OnActivityResumed activity =
-      _navigationActivitySubject.OnNext (Some activity)
-
-
-type CurrentActivityViewNavigator (app: Application) =
-   let activityLifecycleCallbacks = new CurrentActivityActivityLifecycleCallbacks()
-   do app.RegisterActivityLifecycleCallbacks activityLifecycleCallbacks
+type CurrentActivityViewNavigator (currentActivityProvider: ICurrentActivityProvider) =
 
    interface IViewNavigator with
       member this.Navigate navInfo =
          // TODO: Current activity will be None when app starts. Do we need a better way to handle this? 
-         if activityLifecycleCallbacks.CurrentActivity.IsSome then
+         if currentActivityProvider.CurrentActivity.IsSome then
             match navInfo with
             | Activity activityInfo -> this.NavigateActivity activityInfo
             | Fragment fragmentInfo -> this.NavigateFragment fragmentInfo
@@ -39,13 +22,13 @@ type CurrentActivityViewNavigator (app: Application) =
             Task.CompletedTask
          
    member private this.NavigateActivity (navInfo: ActivityViewInfo) : Task =
-      let activity =  activityLifecycleCallbacks.CurrentActivity.Value
+      let activity =  currentActivityProvider.CurrentActivity.Value
       let intent = (new Intent(activity, navInfo.ActivityType)).AddFlags(navInfo.Flags)
       let bundle = ActivityOptions.MakeCustomAnimation(activity, 0, 0).ToBundle()
       // Create a task that will complete when the activity identified by the ActivityNavInfo has started (that is,
       // its OnStart method  has been called).
       let taskSource = new TaskCompletionSource<unit>()
-      activityLifecycleCallbacks.CurrentActivityObservable
+      currentActivityProvider.CurrentActivityObservable
          .Where(fun a -> navInfo.ActivityType.IsAssignableFrom(a.GetType()))
          .FirstAsync()
          .Subscribe(
@@ -59,7 +42,7 @@ type CurrentActivityViewNavigator (app: Application) =
    member private this.NavigateFragment (viewInfo: FragmentViewInfo) : Task =
       async {
          do! Async.SwitchToContext Application.SynchronizationContext
-         let activity = activityLifecycleCallbacks.CurrentActivity.Value
+         let activity = currentActivityProvider.CurrentActivity.Value
          let fragment = Activator.CreateInstance viewInfo.FragmentType :?> Fragment
          let fragmentManager = viewInfo.ResolveFragmentManager(activity.FragmentManager)
          return fragmentManager

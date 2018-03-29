@@ -54,6 +54,7 @@
     <AndroidResource Include="Resources\values\Strings.xml" />
     <Compile Include="Properties\AssemblyInfo.fs" />
     <Compile Include="ActivityLifecycleCallbacksBase.fs" />
+    <Compile Include="CurrentActivityProvider.fs" />
     <Compile Include="DI\SimpleInjector\SimpleInjectorTypes.fs" />
     <Compile Include="DI\SimpleInjector\ChildContainerFactory.fs" />
     <Compile Include="DI\SimpleInjector\SimpleInjectorActivity.fs" />
