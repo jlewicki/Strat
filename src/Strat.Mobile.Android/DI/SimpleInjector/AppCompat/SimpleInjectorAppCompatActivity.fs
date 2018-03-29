@@ -1,15 +1,17 @@
-﻿namespace Strat.Mobile.Android.DI.SimpleInjector
+﻿namespace Strat.Mobile.Android.DI.SimpleInjector.AppCompat
 
 open Android.App
 open SimpleInjector
+open Strat.Mobile.Android.DI.SimpleInjector
+open Android.Support.V7.App
 
 
 /// Base class for activities that support injection of dependencies.
 /// 
 /// If a subclass has writable properties decorated with [<Inject>], then those fields will be injected with
 /// instances from the DI container during the OnCreate method.
-type SimpleInjectorActivity() = 
-   inherit Activity() 
+type SimpleInjectorAppCompatActivity() = 
+   inherit AppCompatActivity() 
 
    let mutable _activityContainer = Unchecked.defaultof<Container>
   
