@@ -63,14 +63,18 @@ type SimpleInjectorApplication(javaRef: IntPtr, transfer: JniHandleOwnership) =
       let activityPackagesByTypeName = Dictionary<string, IChildContainerPackage[]>()
       let fragmentPackagesByTypeName = Dictionary<string, IChildContainerPackage[]>()
       this.GetType().Assembly.ExportedTypes 
+      |> Seq.filter (fun t -> not t.IsAbstract)
       |> Seq.filter (fun t -> typeof<Activity>.IsAssignableFrom t || typeof<Fragment>.IsAssignableFrom t)
       |> Seq.iter (fun  t -> 
          if typeof<Activity>.IsAssignableFrom t then
             let packages = ActivityContainerPackageAttribute.CreatePackages t
-            activityPackagesByTypeName.Add (t.Name, packages)
+            if packages.Length > 0 then
+               activityPackagesByTypeName.Add (t.Name, packages)
          else
             let packages = FragmentContainerPackageAttribute.CreatePackages t
-            fragmentPackagesByTypeName.Add (t.FullName, packages))
+            if packages.Length > 0 then
+               fragmentPackagesByTypeName.Add (t.FullName, packages))
+            
                                                                                                                
       container, activityPackagesByTypeName, fragmentPackagesByTypeName
 
