@@ -20,7 +20,6 @@ type CurrentActivityActivityLifecycleCallbacks ()=
       _navigationActivitySubject
          .Where(Option.isSome)
          .Select(Option.get)
-         .DistinctUntilChanged()
    
    interface ICurrentActivityProvider with
       member this.CurrentActivity : option<Activity> = 
