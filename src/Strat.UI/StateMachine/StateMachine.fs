@@ -14,7 +14,8 @@ type IMessageDispatcher<'D,'M> =
 
 type IStateMachine<'D, 'M> =
    inherit IMessageDispatcher<'D, 'M>
-   abstract Data: IObservable<'D>
+   abstract Data: 'D
+   abstract DataObservable: IObservable<'D>
 
    
 // Messages for the state machine agent 
@@ -34,7 +35,7 @@ with
 type private SimpleStateMachine<'D, 'M> (stateTree: StateTree<'D,'M>, initialData: 'D, ?initialState: StateId) =
    let initialContext = Machine.initializeContext stateTree initialData initialState |> Async.RunSynchronously
    let contextSubject = new BehaviorSubject<StateMachineContext<'D, 'M>>(initialContext)
-   let currentData = contextSubject.Select(fun ctx -> ctx.Data)
+   let currentDataObs = contextSubject.Select(fun ctx -> ctx.Data)
    let agent : MailboxProcessor<StateMachineMessage<'D,'M>> = MailboxProcessor.Start (fun inbox ->
       let rec loop context =
          async {
@@ -54,8 +55,10 @@ type private SimpleStateMachine<'D, 'M> (stateTree: StateTree<'D,'M>, initialDat
       loop initialContext)
     
    interface IStateMachine<'D,'M> with
-      member this.Data : IObservable<'D> = 
-         currentData
+      member this.Data : 'D = 
+         contextSubject.Value.Data
+      member this.DataObservable : IObservable<'D> = 
+         currentDataObs
       member this.PostMessageAsync (message: 'M) =
          agent.PostAndAsyncReply (fun reply -> PostAndReply (message, reply))
          |> Async.StartAsTask

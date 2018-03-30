@@ -32,7 +32,7 @@ with
 
 
 type IViewNavigator =
-   abstract Navigate: ViewInfo -> Task
+   abstract Navigate: ViewInfo -> Task<obj>
 
 
 [<Sealed>]
@@ -68,7 +68,7 @@ module ViewTree =
             // sttate that is represented by an activity.  We can't display (navigate to) the fragment unless the 
             // parent activity is available, since we need to place the fragment in the activity's FragmentManager.
             // So it is important for the view of a parent state to be fully ready before entering the child state.
-            do! navigator.Navigate viewInfo |> Async.AwaitTask
+            let! view = navigator.Navigate viewInfo |> Async.AwaitTask
             return nextData
          })
 

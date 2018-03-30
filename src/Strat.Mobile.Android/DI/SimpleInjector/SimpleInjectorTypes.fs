@@ -1,9 +1,11 @@
 ﻿namespace Strat.Mobile.Android.DI.SimpleInjector
 
 open System
+open System.Linq.Expressions
 open System.Reflection
 open SimpleInjector
 open Android.App
+open System.Runtime.CompilerServices
 
 
 // Attribute indicating that a property on an an activity/fragment is intended to recieve its value from the DI
@@ -79,9 +81,27 @@ type IChildContainerFactory<'TOwner when 'TOwner : not struct> =
    abstract CreateChildContainer: forOwner:'TOwner * parentContainer: Container -> Container
   
 
-// Plugin for SimpleInject to allow the container to inject properties decorated with InjectAttribute.
+/// Plugin for SimpleInject to allow the container to inject properties decorated with InjectAttribute.
 type InjectAttributePropertySelectionBehavior() = 
    interface Advanced.IPropertySelectionBehavior with
       member this.SelectProperty(implementationType: Type, prop: PropertyInfo) =
          prop.GetCustomAttributes(typeof<InjectAttribute>) |> (Seq.isEmpty >> not)
+
+
+
+[<Extension>]
+type ContainerOptionsExtensions =
+   /// Adds a handler for the ResolveUnregisteredType event that will automaticlly register Func<T> types with the 
+   /// container.  When the Func is invoked, the underlying regstration with the container for the type T is used to
+   /// produce the instance that is returned.
+   [<Extension>]
+   static member AllowResolvingFuncFactories (options: ContainerOptions) = 
+      options.Container.ResolveUnregisteredType.Add (fun args -> 
+         let t = args.UnregisteredServiceType
+         if (not args.Handled) && t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<Func<_>> then            
+            let serviceType = t.GetGenericArguments() |> Seq.head
+            let registration = options.Container.GetRegistration(serviceType, true)
+            let funcType = typedefof<Func<_>>.MakeGenericType(serviceType)
+            let factoryDelegate = Expression.Lambda(funcType, registration.BuildExpression()).Compile()
+            args.Register (Expression.Constant factoryDelegate))
 

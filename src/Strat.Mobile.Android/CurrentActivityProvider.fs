@@ -16,7 +16,11 @@ type CurrentActivityActivityLifecycleCallbacks ()=
    inherit ActivityLifecycleCallbacksBase()
    
    let _navigationActivitySubject = new BehaviorSubject<option<Activity>> (None)
-   let _navigationActivity = _navigationActivitySubject.Where(Option.isSome).Select(Option.get)
+   let _navigationActivity = 
+      _navigationActivitySubject
+         .Where(Option.isSome)
+         .Select(Option.get)
+         .DistinctUntilChanged()
    
    interface ICurrentActivityProvider with
       member this.CurrentActivity : option<Activity> = 
@@ -24,6 +28,8 @@ type CurrentActivityActivityLifecycleCallbacks ()=
       member this.CurrentActivityObservable : IObservable<Activity>  = 
          _navigationActivity
 
+   //override this.OnActivityCreated (activity, _) =
+   //   _navigationActivitySubject.OnNext (Some activity)
    override this.OnActivityStarted activity =
       _navigationActivitySubject.OnNext (Some activity)
    override this.OnActivityResumed activity =

@@ -12,45 +12,41 @@ open Strat.Mobile.Android
 type CurrentActivityViewNavigator (currentActivityProvider: ICurrentActivityProvider) =
 
    interface IViewNavigator with
-      member this.Navigate navInfo =
-         // TODO: Current activity will be None when app starts. Do we need a better way to handle this? 
-         if currentActivityProvider.CurrentActivity.IsSome then
-            match navInfo with
-            | Activity activityInfo -> this.NavigateActivity activityInfo
-            | Fragment fragmentInfo -> this.NavigateFragment fragmentInfo
-         else
-            Task.CompletedTask
+      member this.Navigate navInfo : Task<obj> =
+         match navInfo with
+         | Activity activityInfo -> this.NavigateActivity activityInfo
+         | Fragment fragmentInfo -> this.NavigateFragment fragmentInfo
          
-   member private this.NavigateActivity (navInfo: ActivityViewInfo) : Task =
+   member private this.NavigateActivity (navInfo: ActivityViewInfo) : Task<obj> =
       let activity =  currentActivityProvider.CurrentActivity.Value
       let intent = (new Intent(activity, navInfo.ActivityType)).AddFlags(navInfo.Flags)
       let bundle = ActivityOptions.MakeCustomAnimation(activity, 0, 0).ToBundle()
       // Create a task that will complete when the activity identified by the ActivityNavInfo has started (that is,
       // its OnStart method  has been called).
-      let taskSource = new TaskCompletionSource<unit>()
+      let taskSource = new TaskCompletionSource<obj>()
       currentActivityProvider.CurrentActivityObservable
          .Where(fun a -> navInfo.ActivityType.IsAssignableFrom(a.GetType()))
          .FirstAsync()
          .Subscribe(
-            (fun _ -> taskSource.SetResult(())),
+            (fun activity -> taskSource.SetResult activity),
             (fun (ex: exn) -> taskSource.SetException ex))
       |> ignore
       // Now tell android to start the activity.
       activity.StartActivity(intent, bundle)
-      taskSource.Task :> Task
+      taskSource.Task
 
-   member private this.NavigateFragment (viewInfo: FragmentViewInfo) : Task =
+   member private this.NavigateFragment (viewInfo: FragmentViewInfo) : Task<obj> =
       async {
          do! Async.SwitchToContext Application.SynchronizationContext
          let activity = currentActivityProvider.CurrentActivity.Value
          let fragment = Activator.CreateInstance viewInfo.FragmentType :?> Fragment
          let fragmentManager = viewInfo.ResolveFragmentManager(activity.FragmentManager)
-         return fragmentManager
+         fragmentManager
             .BeginTransaction()
             .Replace(viewInfo.ContainerViewId, fragment, ("Fragment_" + viewInfo.StateId))
             .Commit() 
          |> ignore
-      } 
-      // TODO: FragmentManager.FragmentLifecycleCallbacks be used to help figure out when the 
-      // fragment has started?
-      |> Async.StartAsTask :> Task
+         // TODO: do we need to use FragmentLifecycleCallbacks to determine when fragment has started?
+         return fragment :> obj
+      }
+      |> Async.StartAsTask

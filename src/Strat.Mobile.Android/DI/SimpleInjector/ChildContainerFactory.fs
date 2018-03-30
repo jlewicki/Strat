@@ -14,9 +14,10 @@ type ChildContainerFactory<'TOwner when 'TOwner : not struct> (packagesByTypeNam
          // Add a handler for unregistered types, so that service resolutions can be delegated to the root 
          // container if they are not registered with the activity container.
          childContainer.ResolveUnregisteredType.Add (fun args -> 
-            let instanceProducer = parentContainer.GetRegistration(args.UnregisteredServiceType, false)
-            if not (isNull instanceProducer) then
-               args.Register instanceProducer.Registration)
+            if not args.Handled then
+               let instanceProducer = parentContainer.GetRegistration(args.UnregisteredServiceType, false)
+               if not (isNull instanceProducer) then
+                  args.Register instanceProducer.Registration)
 
          // Look up any packages that were registered for the activity with attributes.
          let success, packages = packagesByTypeName.TryGetValue(owner.GetType().FullName)

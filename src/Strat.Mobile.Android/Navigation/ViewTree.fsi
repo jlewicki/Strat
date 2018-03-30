@@ -43,10 +43,10 @@ with
 
 /// Defines methods to navigate to a fragment of view 
 type IViewNavigator =
-   /// Navigates to the activity or fragment represented by the specified view info. The returne task completes when 
+   /// Navigates to the activity or fragment represented by the specified view info. The returned task completes when 
    /// the associated view has been displayed (that is, the activity has fully started, or the fragment transaction has
-   /// been committed).
-   abstract Navigate: ViewInfo -> Task
+   /// been committed). The object that is returned from that task is the activity or fragment that was displayed/
+   abstract Navigate: ViewInfo -> Task<obj>
 
 
 module ViewTree = 

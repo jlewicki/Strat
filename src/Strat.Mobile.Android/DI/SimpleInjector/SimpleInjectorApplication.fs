@@ -69,7 +69,7 @@ type SimpleInjectorApplication(javaRef: IntPtr, transfer: JniHandleOwnership) =
          if typeof<Activity>.IsAssignableFrom t then
             let packages = ActivityContainerPackageAttribute.CreatePackages t
             if packages.Length > 0 then
-               activityPackagesByTypeName.Add (t.Name, packages)
+               activityPackagesByTypeName.Add (t.FullName, packages)
          else
             let packages = FragmentContainerPackageAttribute.CreatePackages t
             if packages.Length > 0 then
