@@ -5,8 +5,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="IObservableProperty.fs" />
-    <Compile Include="ReadOnlyProperty.fs" />
+    <Compile Include="Agent.fsi" />
+    <Compile Include="Agent.fs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Strat.StateMachine\Strat.StateMachine.fsproj" />
+    <ProjectReference Include="..\..\src\Strat.StateMachine\Strat.StateMachine.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

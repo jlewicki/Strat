@@ -17,7 +17,6 @@
     <Compile Include="Definition.fs" />
     <Compile Include="Machine.fsi" />
     <Compile Include="Machine.fs" />
-    <Compile Include="Agent.fs" />
   </ItemGroup>
 
   <ItemGroup />

@@ -35,7 +35,7 @@ type internal SMReply<'D,'M> =
    | StartReply of DidStart: bool * Lifecycle: AgentLifecycle<'D,'M> 
    | GetLifecycleReply of AgentLifecycle<'D,'M> 
    | StopReply of DidStop: bool * Lifecycle: AgentLifecycle<'D,'M> 
-   | DispatchMessageReply of option<MessageProcessed<'D,'M>> * Lifecycle: AgentLifecycle<'D,'M> 
+   | DispatchMessageReply of MessageProcessed<'D,'M> * Lifecycle: AgentLifecycle<'D,'M> 
    | ErrorReply of Error: Exception * Lifecycle: AgentLifecycle<'D,'M> 
 with  
    member this.Lifecyle =  
@@ -48,7 +48,7 @@ with
 
 
 /// Describes the message type that parameterizes the state machine agent.  
-type internal SMReplyableMessage<'D,'M> = SMMessage<'M> * AsyncReplyChannel<SMReply<'D,'M>> 
+type internal SMReplyableMessage<'D,'M> = SMMessage<'M> * option<AsyncReplyChannel<SMReply<'D,'M>>> 
 
 
 /// A function that maps a state to a state handler. Primarily useful for unit testing. 
@@ -162,12 +162,12 @@ type StateMachineAgent<'D,'M>
       let rec loop (lifecycle: AgentLifecycle<'D,'M>) = 
          async { 
             // Wait for next message 
-            let! smMessage, replyChannel = inbox.Receive() 
+            let! smMessage, optReplyChannel = inbox.Receive() 
    
             // Helper methods to update current lifecycle and to send a reply before looping 
             let replyAndLoopWithAction replyMsg nextLifecycle (postReplyAction: option<unit->unit>) =  
                currentLifecycle := nextLifecycle 
-               replyChannel.Reply replyMsg 
+               optReplyChannel |> Option.iter (fun replyChannel -> replyChannel.Reply replyMsg)
                // Call action (which will raise events) after reply has been sent. Its hard to say which approach is 
                // more intuitive (raise events before or aftre the reply message), so this is slightly arbitrary.
                if Option.isSome postReplyAction then postReplyAction.Value() 
@@ -205,13 +205,14 @@ type StateMachineAgent<'D,'M>
                   let postReplyAction = mkPostReplyAction msgProcessed nextLifecycle
                   return! 
                      replyAndLoopWithAction 
-                        (DispatchMessageReply(Some(msgProcessed), nextLifecycle)) 
+                        (DispatchMessageReply (msgProcessed, nextLifecycle)) 
                         nextLifecycle 
                         (Some(postReplyAction))
    
-               | AgentLifecycle.Stopped(_), DispatchMessage(_) -> 
-                  // Nothing to do if stopped, but make to send a reply message 
-                  return! replyAndLoop (SMReply.DispatchMessageReply(None, lifecycle)) lifecycle
+               | AgentLifecycle.Stopped _, DispatchMessage msg -> 
+                  // Nothing to do if stopped, but send a reply message 
+                  let msgProcessed = MessageProcessed.InvalidMessage ("State machine is stopped", None, msg)
+                  return! replyAndLoop (SMReply.DispatchMessageReply(msgProcessed, lifecycle)) lifecycle
                 
                | AgentLifecycle.Stopped(_), Stop(_) -> 
                   // We'll only get here if two threads perform external stops, which would be unsual, but not invalid. 
@@ -238,7 +239,7 @@ type StateMachineAgent<'D,'M>
          match !currentLifecycle with 
          | AgentLifecycle.New -> 
             smAgent.Start() 
-            let dispatcher reply = SMMessage.Start, reply 
+            let dispatcher reply = SMMessage.Start, Some reply 
             fSendStartMsg dispatcher 
          | AgentLifecycle.Started(_) -> invalidOp "State machine is already started." 
          | AgentLifecycle.Stopped(_) -> invalidOp "State machine has been stopped." ) 
@@ -258,38 +259,30 @@ type StateMachineAgent<'D,'M>
       !currentLifecycle 
 
 
-   /// <summary>Gets the current context for the state machine.</summary> 
-   /// <exception cref="System.InvalidOperationException">If the state machine lifecycle state is not Started.</exception> 
-   member this.Context : StateMachineContext<'D,'M> =
+   member this.CurrentContext : StateMachineContext<'D,'M> =
       match !currentLifecycle with 
       | AgentLifecycle.Started(smContext) -> smContext
       | _ -> invalidOp "Lifecycle must be running" 
 
 
-   /// <summary>
-   /// Starts the state machine so that it can process messages. The calling thread is blocked until the state 
-   /// machine has fully started, or until the timeout expires. 
-   /// </summary>
-   /// <param name="timeout">Optional timeout indicating how long to wait for the state machine to start.</param>
-   /// <exception cref="System.TimeoutException">If the state machine has not started before the timeout expires.</exception> 
-   /// <exception cref="System.InvalidOperationException">If the state machine lifecycle state is not New.</exception> 
-   member this.Start (?timeout: TimeSpan) : unit =
+   member this.Start (?timeout: TimeSpan) : StateMachineContext<'D,'M> =
       doStart (fun dispatcher -> 
-         smAgent.PostAndReply (dispatcher, ?timeout = timespanInMillis timeout) |> valueOrThrow |> ignore  ) 
+         let reply = smAgent.PostAndReply (dispatcher, ?timeout = timespanInMillis timeout)
+         match reply |> valueOrThrow with
+         | SMReply.StartReply(true, AgentLifecycle.Started(smContext)) -> smContext
+         | _ -> invalidOp "Unexpected reply")
 
 
-   /// <summary>
-   /// Asynchronously starts the state machine so that it can process messages.
-   /// </summary>
-   /// <param name="timeout">How long to wait for the state machine to start.</param>
-   /// <exception cref="System.TimeoutException">If the state machine has not started before the timeout expires.</exception> 
-   /// <exception cref="System.InvalidOperationException">If the state machine has already been started or stopped.</exception>
-   member this.StartAsync (?timeout: TimeSpan) : Task = 
+   member this.StartAsync (?timeout: TimeSpan) : Task<StateMachineContext<'D,'M>> = 
       doStart (fun dispatcher -> 
          async { 
-            let! reply = smAgent.PostAndAsyncReply (dispatcher, ?timeout = timespanInMillis timeout) 
-            return reply |> valueOrThrow |> ignore }
-         |> Async.StartAsTask :> Task)
+            let! reply = smAgent.PostAndAsyncReply (dispatcher, ?timeout = timespanInMillis timeout)
+            return 
+               match reply |> valueOrThrow with
+               | SMReply.StartReply(true, AgentLifecycle.Started(smContext)) -> smContext
+               | _ -> invalidOp "Unexpected reply"
+         }
+         |> Async.StartAsTask)
 
 
    /// <summary> 
@@ -309,7 +302,7 @@ type StateMachineAgent<'D,'M>
          match !currentLifecycle with 
          | AgentLifecycle.Started(_)  -> 
             let stopReason = mkStopReason message code
-            let dispatcher reply = SMMessage.Stop(stopReason), reply 
+            let dispatcher reply = SMMessage.Stop(stopReason), Some reply 
             match (smAgent.PostAndReply (dispatcher, ?timeout = timespanInMillis timeout) |> valueOrThrow) with 
             | StopReply(true, _)-> 
                (smAgent :> IDisposable).Dispose() 
@@ -335,7 +328,7 @@ type StateMachineAgent<'D,'M>
          match !currentLifecycle with 
          | AgentLifecycle.Started(_)  -> 
             let stopReason = mkStopReason message code
-            let dispatcher reply = SMMessage.Stop(stopReason), reply 
+            let dispatcher reply = SMMessage.Stop(stopReason), Some reply 
             async { 
                let! reply = smAgent.PostAndAsyncReply (dispatcher, ?timeout = timespanInMillis timeout) 
                return  
@@ -364,31 +357,28 @@ type StateMachineAgent<'D,'M>
    member this.SendMessage(message: 'M, ?timeout: TimeSpan) : StateMachineContext<'D,'M> = 
          lock currentLifecycle (fun () -> 
          ensureStarted() 
-         let dispatcher reply = SMMessage.DispatchMessage(message), reply 
+         let dispatcher reply = SMMessage.DispatchMessage(message), Some reply 
          let reply = smAgent.PostAndReply (dispatcher, ?timeout = timespanInMillis timeout) 
          reply
          |> valueOrThrow 
          |> replytoSMContext)
 
 
-   /// <summary>
-   /// Asynchronously sends a message to the state machine.
-   /// </summary>
-   /// <param name="message">The message to send to the state machine for processing.</param>
-   /// <param name="timeout">
-   /// Optional timeout indicating how long to wait for the state machine to process the message.
-   /// </param>
-   /// <exception cref="System.TimeoutException">
-   /// If the state machine has not processed the message before the timeout expires.
-   /// </exception> 
-   /// <exception cref="System.InvalidOperationException">If the state machine lifecycle state is not Started.</exception>
-   member this.SendMessageAsync(message: 'M, ?timeout: TimeSpan) : Task<StateMachineContext<'D,'M>> = 
+   member this.PostMessage(message: 'M) : unit =
       lock currentLifecycle (fun () -> 
          ensureStarted() 
-         let dispatcher reply = SMMessage.DispatchMessage(message), reply 
+         smAgent.Post (SMMessage.DispatchMessage(message), None))
+
+   member this.PostMessageWithAsyncReply(message: 'M, ?timeout: TimeSpan) : Task<MessageProcessed<'D,'M>> = 
+      lock currentLifecycle (fun () -> 
+         ensureStarted() 
+         let dispatcher reply = SMMessage.DispatchMessage(message), Some reply 
          async { 
             let! reply = smAgent.PostAndAsyncReply (dispatcher, ?timeout = timespanInMillis timeout) 
-            return reply |> valueOrThrow |> replytoSMContext 
+            return 
+               match reply |> valueOrThrow with
+               | SMReply.DispatchMessageReply(msgProcessed, _) -> msgProcessed
+               | _ -> invalidOp "Unexpected reply"
          }
          |> Async.StartAsTask)
 
@@ -446,7 +436,7 @@ module StateMachineAgent =
    [<CompiledName "StartNewAgent">]
    let startNewAgent (stateTree: StateTree<'D,'M>) (initialData: 'D) =
       let agent = newAgent stateTree initialData
-      agent.Start()
+      agent.Start() |> ignore
       agent
 
 
@@ -454,7 +444,7 @@ module StateMachineAgent =
    [<CompiledName "StartNewAgentIn">]
    let startNewAgentIn (initialState: StateId) (stateTree: StateTree<'D,'M>) (initialData: 'D) =
       let agent = newAgentIn initialState stateTree initialData
-      agent.Start()
+      agent.Start() |> ignore
       agent
 
 
