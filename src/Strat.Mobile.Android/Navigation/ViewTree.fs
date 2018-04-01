@@ -131,7 +131,9 @@ module ViewTree =
         simpleNavigationHandler navigator (ViewInfo.Fragment viewInfo)
 
 
-   type MvvmFragmentStateView<'D, 'M, 'View, 'ViewModel when 'View :> IView<'ViewModel> and 'ViewModel: not struct> (viewInfo: FragmentViewInfo, childViews: list<FragmentStateView<'D,'M>>) =
+   type MvvmFragmentStateView<'D, 'M, 'View, 'ViewModel when 'View :> IView<'ViewModel> and 'ViewModel: not struct> 
+      ( viewInfo: FragmentViewInfo, 
+        childViews: list<FragmentStateView<'D,'M>>) =
       inherit FragmentStateView<'D,'M>(viewInfo, childViews)
       override this.CreateHandlerWrapper (uiSyncContext, navigator, viewModelFactory) = 
         mvvmNavigationHandler uiSyncContext navigator viewModelFactory (ViewInfo.Fragment viewInfo)
@@ -206,65 +208,65 @@ module ViewTree =
             |> List.map (fun (CreateFragmentStateView creator) -> creator resolveFragManagerForChildren containerViewId)
          createStateView (navInfo, childFragmentViews))
 
+   type Builder<'D, 'M>() = 
+      static member Instance = new Builder<'D,'M>()
 
-   let activity<'D, 'M, 'TActivity when 'TActivity :> Activity> (stateId: StateId) (flags: option<ActivityFlags>) =
-      let navInfo = newActivityInfo<'TActivity> stateId flags
-      SimpleActivityStateView<'D,'M> (navInfo, List.empty) :> ActivityStateView<'D,'M>
+      member this.Activity<'Activity when 'Activity :> Activity>
+         ( stateId: StateId,      
+           flags: option<ActivityFlags> ) =
+         let navInfo = newActivityInfo<'Activity> stateId flags
+         SimpleActivityStateView<'D,'M> (navInfo, List.empty) :> ActivityStateView<'D,'M>
 
-
-   let mvvmActivity<'D, 'M, 'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct>
-      (stateId: StateId)
-      (flags: option<ActivityFlags>) =
-      let navInfo = newActivityInfo<'Activity> stateId flags
-      MvvmActivityStateView<'D, 'M, 'Activity, 'ViewModel> (navInfo, List.empty) :> ActivityStateView<'D,'M>
-
-
-   let activityWithFragments<'D, 'M, 'Activity when 'Activity :> Activity> 
-      (stateId: StateId)
-      (flags: option<ActivityFlags>)
-      (containerViewId: int)
-      (childFragmentCreators: list<CreateFragmentStateView<'D,'M>>) =
+      member this.ActivityWithFragments<'Activity when 'Activity :> Activity>
+         ( stateId: StateId, 
+           flags: option<ActivityFlags>,
+           containerViewId: int,
+           childFragmentCreators: list<CreateFragmentStateView<'D,'M>> ) =
          let createStateView (avi, fsvs) = SimpleActivityStateView<'D, 'M> (avi, fsvs) :> ActivityStateView<'D,'M>
          activityWithFragmentsCore createStateView stateId flags containerViewId childFragmentCreators
 
+      member this.Fragment<'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> 
+         ( stateId: StateId ) =
+         CreateFragmentStateView (fun resolveFragManager containerViewId ->
+            let navInfo = FragmentViewInfo (stateId, typeof<'Fragment>, containerViewId, resolveFragManager)
+            SimpleFragmentStateView<'D,'M> (navInfo, List.empty) :> FragmentStateView<'D,'M>)
 
-   let mvvmActivityWithFragments<'D, 'M, 'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct>
-      (stateId: StateId)
-      (flags: option<ActivityFlags>)
-      (containerViewId: int)
-      (childFragmentCreators: list<CreateFragmentStateView<'D,'M>>) =
-         let createStateView (avi, fsvs) = MvvmActivityStateView<'D, 'M, 'Activity, 'ViewModel> (avi, fsvs) :> ActivityStateView<'D,'M>
-         activityWithFragmentsCore createStateView stateId flags containerViewId childFragmentCreators
-   
-
-   let fragment<'D, 'M,'TFragment when 'TFragment :> Fragment and 'TFragment : (new : unit -> 'TFragment)> 
-     (stateId: StateId) =
-     CreateFragmentStateView (fun resolveFragManager containerViewId ->
-        let navInfo = FragmentViewInfo (stateId, typeof<'TFragment>, containerViewId, resolveFragManager)
-        SimpleFragmentStateView<'D,'M> (navInfo, List.empty) :> FragmentStateView<'D,'M>)
-
-
-   let mvvmFragment<'D, 'M, 'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> 
-      (stateId: StateId) =
-      CreateFragmentStateView (fun resolveFragManager containerViewId ->
-         let navInfo = FragmentViewInfo (stateId, typeof<'Fragment>, containerViewId, resolveFragManager)
-         MvvmFragmentStateView<'D, 'M, 'Fragment, 'ViewModel> (navInfo, List.empty) :> FragmentStateView<'D,'M>)
-
-
-   let fragmentWithFragments<'D, 'M, 'TFragment when 'TFragment :> Fragment and 'TFragment : (new : unit -> 'TFragment)> 
-      (stateId: StateId)
-      (containerViewId: int)
-      (childFragmentCreators: list<CreateFragmentStateView<'D,'M>>) =
+      member this.FragmentWithFragments<'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)>
+         ( stateId: StateId,
+           containerViewId: int, 
+           childFragmentCreators: list<CreateFragmentStateView<'D,'M>> ) =
          let createStateView (fvi, fsvs) = SimpleFragmentStateView<'D, 'M> (fvi, fsvs) :> FragmentStateView<'D,'M>
          fragmentWithFragmentsCore createStateView stateId containerViewId childFragmentCreators
-  
 
-   let mvvmFragmentWithFragments<'D, 'M, 'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> 
-      (stateId: StateId)
-      (containerViewId: int)
-      (childFragmentCreators: list<CreateFragmentStateView<'D,'M>>) =
+      member this.MvvmActivity<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct>
+         ( stateId: StateId,
+           flags: option<ActivityFlags> ) =
+         let navInfo = newActivityInfo<'Activity> stateId flags
+         MvvmActivityStateView<'D, 'M, 'Activity, 'ViewModel> (navInfo, List.empty) :> ActivityStateView<'D,'M>
+
+      member this.MvvmActivityWithFragments<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct>
+         ( stateId: StateId,
+           flags: option<ActivityFlags>,
+           containerViewId: int,
+           childFragmentCreators: list<CreateFragmentStateView<'D,'M>> ) =
+         let createStateView (avi, fsvs) = MvvmActivityStateView<'D, 'M, 'Activity, 'ViewModel> (avi, fsvs) :> ActivityStateView<'D,'M>
+         activityWithFragmentsCore createStateView stateId flags containerViewId childFragmentCreators
+
+      member this.MvvmFragment<'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct>
+         ( stateId: StateId ) =
+         CreateFragmentStateView (fun resolveFragManager containerViewId ->
+            let navInfo = FragmentViewInfo (stateId, typeof<'Fragment>, containerViewId, resolveFragManager)
+            MvvmFragmentStateView<'D, 'M, 'Fragment, 'ViewModel> (navInfo, List.empty) :> FragmentStateView<'D,'M>)
+
+      member this.MvvmFragmentWithFragments<'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct>
+         ( stateId: StateId,
+           containerViewId: int,
+           childFragmentCreators: list<CreateFragmentStateView<'D,'M>> ) =
          let createStateView (fvi, fsvs) = MvvmFragmentStateView<'D, 'M, 'Fragment, 'ViewModel> (fvi, fsvs) :> FragmentStateView<'D,'M>
          fragmentWithFragmentsCore createStateView stateId containerViewId childFragmentCreators
+
+   [<GeneralizableValue>]
+   let Build<'D,'M> =  Builder<'D,'M>.Instance
 
 
    let mixinViewTree
