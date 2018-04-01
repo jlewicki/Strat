@@ -123,6 +123,11 @@
       <Project>{9af0b204-c7fc-48f7-977b-5a5f6f1a68c9}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\Strat.UI\Strat.UI.fsproj">
+      <Name>Strat.UI</Name>
+      <Project>{e9dadf4b-f880-4163-8c19-7982cdef8307}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="..\..\..\..\TFS\Hunters\packages\Xamarin.Android.Support.Annotations.26.0.2\build\MonoAndroid80\Xamarin.Android.Support.Annotations.targets" Condition="Exists('..\..\..\..\TFS\Hunters\packages\Xamarin.Android.Support.Annotations.26.0.2\build\MonoAndroid80\Xamarin.Android.Support.Annotations.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
