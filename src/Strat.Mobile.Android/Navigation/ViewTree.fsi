@@ -33,7 +33,8 @@ with
    member StateId: StateId
 
 
-/// Defines methods to navigate to a fragment of view 
+/// Defines methods to navigate to a view (that is, an activity or fragment) that provides a visualization of a state 
+/// in a state tree.
 type IViewNavigator =
    /// Navigates to the activity or fragment represented by the specified view info. The returned task completes when 
    /// the associated view has been displayed (that is, the activity has fully started, or the fragment transaction has
@@ -60,31 +61,31 @@ module ViewTree =
    open System.Threading
    open System.Reactive.Subjects
 
-   type IViewModelFactory =
+   type IViewModelFactory<'Model> =
       abstract CreateViewModel: BehaviorSubject<'Model>-> 'ViewModel when 'ViewModel: not struct
 
    [<AbstractClass>]
-   type ActivityStateView = 
+   type ActivityStateView<'D,'M> = 
       abstract CreateHandlerWrapper: 
-         SynchronizationContext * IViewNavigator * IViewModelFactory -> (StateHandler<'D,'M> -> StateHandler<'D,'M>)
+         SynchronizationContext * IViewNavigator * IViewModelFactory<'D> -> (StateHandler<'D,'M> -> StateHandler<'D,'M>)
 
-   type CreateFragmentStateView
+   type CreateFragmentStateView<'D,'M>
 
    /// Represent the complete set of mappings between states in a state tree, and the activities and fragments that are shown 
    /// as states are entered.
-   type StateViewTree = list<ActivityStateView>
+   type StateViewTree<'D,'M> = list<ActivityStateView<'D,'M>>
 
    /// Creates an ActivityStateView indicating that an activity of the specified type should be started when the state
    /// with the specified ID is entered.
    /// <param name="stateId">Id of the state that, when entered, the activity should be started.</param>
    /// <param name="flags">Activity flags indicating how the activity should be started</param>
-   val activity<'Activity when 'Activity :> Activity> :
+   val activity<'D,'M, 'Activity when 'Activity :> Activity> :
       stateId: StateId ->
-      flags: option<ActivityFlags> -> ActivityStateView
+      flags: option<ActivityFlags> -> ActivityStateView<'D,'M>
 
-   val mvvmActivity<'Model, 'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
+   val mvvmActivity<'D, 'M, 'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
       stateId: StateId ->
-      flags: option<ActivityFlags> -> ActivityStateView
+      flags: option<ActivityFlags> -> ActivityStateView<'D,'M>
 
    /// Creates an ActivityStateView indicating that an activity of the specified type should be started when the state
    /// with the specified ID is entered. The activity will host fragments as descendent states are entered.
@@ -94,30 +95,30 @@ module ViewTree =
    ///   corresponding to descendent states.</param>
    /// <param name="childFragmentCreators">List of functions indicating the mappings between the fragments to host, and
    ///   descendent states.</param>
-   val activityWithFragments<'Activity when 'Activity :> Activity> :
+   val activityWithFragments<'D, 'M, 'Activity when 'Activity :> Activity> :
       stateId: StateId ->
       flags: option<ActivityFlags> ->
       containerViewId: int -> 
-      childFragmentCreators: list<CreateFragmentStateView> -> ActivityStateView
+      childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> ActivityStateView<'D,'M>
 
 
-   val mvvmActivityWithFragments<'Model, 'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
+   val mvvmActivityWithFragments<'D,'M, 'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
       stateId: StateId ->
       flags: option<ActivityFlags> -> 
       containerViewId: int -> 
-      childFragmentCreators: list<CreateFragmentStateView> -> ActivityStateView
+      childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> ActivityStateView<'D,'M>
 
    /// Creates an CreateFragmentStateView indicating that a fragment of the specified type should be displayed when the
    /// state with the specified ID is entered. 
    /// <remarks>The fragment is hosted in an activity or fragment that has been displayed in response to an ancestor
    ///   state being entered.</remarks>
    /// <param name="stateId">Id of the state that, when entered, the the fragment should be displayed.</param>
-   val fragment<'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> :
-      stateId: StateId -> CreateFragmentStateView
+   val fragment<'D, 'M, 'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> :
+      stateId: StateId -> CreateFragmentStateView<'D,'M>
 
 
-   val mvvmFragment<'Model, 'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> :
-      stateId: StateId -> CreateFragmentStateView
+   val mvvmFragment<'D, 'M, 'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> :
+      stateId: StateId -> CreateFragmentStateView<'D,'M>
 
    /// Creates an CreateFragmentStateView indicating that a fragment of the specified type should be displayed when the
    /// state with the specified ID is entered. The fragment will host fragments as descendent states are entered.
@@ -128,21 +129,55 @@ module ViewTree =
    ///   corresponding to descendent states.</param>
    /// <param name="childFragmentCreators">List of functions indicating the mappings between the fragments to host, and
    ///   descendent states.</param>
-   val fragmentWithFragments<'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> :
+   val fragmentWithFragments<'D, 'M, 'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> :
       stateId: StateId -> 
       containerViewId: int -> 
-      childFragmentCreators: list<CreateFragmentStateView> -> CreateFragmentStateView
+      childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> CreateFragmentStateView<'D,'M>
 
-   val mvvmFragmentWithFragments<'Model, 'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> :
+   val mvvmFragmentWithFragments<'D, 'M, 'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> :
       stateId: StateId -> 
       containerViewId: int -> 
-      childFragmentCreators: list<CreateFragmentStateView> -> CreateFragmentStateView
+      childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> CreateFragmentStateView<'D,'M>
 
    /// Returns a new state tree by adding transition handlers to states in the tree that will start activities and
    /// fragments as the starts are entered.
    val mixinViewTree:
       uiSyncContext: SynchronizationContext ->
       navigator: IViewNavigator ->
-      viewModelFactory: IViewModelFactory ->
-      viewTree: StateViewTree ->
+      viewModelFactory: IViewModelFactory<'D> ->
+      viewTree: StateViewTree<'D,'M> ->
       stateTree: StateTree<'D,'M> -> StateTree<'D,'M>
+      
+ 
+
+ //[<Class>]
+ //  type StateViewBuilder<'D, 'M> = 
+ //     member Activity<'Activity when 'Activity :> Activity> : 
+ //        stateId: StateId *
+ //        flags: option<ActivityFlags> -> ActivityStateView<'D,'M>
+ //     member ActivityWithFragments<'Activity when 'Activity :> Activity> :
+ //        stateId: StateId *
+ //        flags: option<ActivityFlags> *
+ //        containerViewId: int *
+ //        childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> ActivityStateView<'D,'M>
+ //     member Fragment<'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> :
+ //        stateId: StateId -> CreateFragmentStateView<'D,'M>
+ //     member FragmentWithFragments<'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> :
+ //        stateId: StateId *
+ //        containerViewId: int * 
+ //        childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> CreateFragmentStateView<'D,'M>
+ //     member MvvmActivity<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
+ //        stateId: StateId *
+ //        flags: option<ActivityFlags> -> ActivityStateView<'D,'M>
+ //     member MvvmActivityWithFragments<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
+ //        stateId: StateId *
+ //        flags: option<ActivityFlags> * 
+ //        containerViewId: int *
+ //        childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> ActivityStateView<'D,'M>
+ //     member MvvmFragment<'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> :
+ //        stateId: StateId -> CreateFragmentStateView<'D,'M>
+ //     member MvvmFragmentWithFragments<'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> :
+ //        stateId: StateId *
+ //        containerViewId: int * 
+ //        childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> CreateFragmentStateView<'D,'M>
+  
