@@ -100,11 +100,13 @@ module ViewTree =
          containerViewId: int *
          childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> ActivityStateView<'D,'M>
 
-      /// Creates an CreateFragmentStateView indicating that a fragment of the specified type should be displayed when the
-      /// state with the specified ID is entered. 
+      /// <summary>
+      ///   Creates an CreateFragmentStateView indicating that a fragment of the specified type should be displayed
+      ///   when the state with the specified ID is entered.</summary>
       /// <remarks>The fragment is hosted in an activity or fragment that has been displayed in response to an ancestor
       ///   state being entered.</remarks>
-      /// <param name="stateId">Id of the state that, when entered, the the fragment should be displayed.</param>
+      /// <param name="stateId">
+      ///   Id of the state that, when entered, the the fragment should be displayed.</param>
       member Fragment<'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> :
          stateId: StateId -> CreateFragmentStateView<'D,'M>
       
@@ -127,6 +129,14 @@ module ViewTree =
          containerViewId: int * 
          childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> CreateFragmentStateView<'D,'M>
 
+      /// <summary>
+      ///   Creates an ActivityStateView indicating that an activity of the specified type should be started when the
+      ///   state with the specified ID is entered. Additionally, when the state is entered, a view model will be
+      ///   created and initialized with the current data of the statew machine, and assigned to the activity.</summary>
+      /// <param name="stateId">
+      ///   Id of the state that, when entered, the activity should be started.</param>
+      /// <param name="flags">
+      ///   Activity flags indicating how the activity should be started</param>
       member MvvmActivity<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
          stateId: StateId *
          flags: option<ActivityFlags> -> ActivityStateView<'D,'M>
@@ -137,6 +147,15 @@ module ViewTree =
          containerViewId: int *
          childFragmentCreators: list<CreateFragmentStateView<'D,'M>> -> ActivityStateView<'D,'M>
       
+      /// <summary>
+      ///   Creates an CreateFragmentStateView indicating that a fragment of the specified type should be displayed
+      ///   when the state with the specified ID is entered. Additionally, when the state is entered, a view model will
+      ///   be created and initialized with the current data of the statew machine, and assigned to the 
+      ///   fragment.</summary>
+      /// <remarks>The fragment is hosted in an activity or fragment that has been displayed in response to an ancestor
+      ///   state being entered.</remarks>
+      /// <param name="stateId">
+      ///   Id of the state that, when entered, the the fragment should be displayed.</param>
       member MvvmFragment<'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct> :
          stateId: StateId -> CreateFragmentStateView<'D,'M>
       
