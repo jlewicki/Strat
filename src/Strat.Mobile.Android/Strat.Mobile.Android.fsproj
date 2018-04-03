@@ -66,6 +66,7 @@
     <Compile Include="Navigation\ViewTree.fsi" />
     <Compile Include="Navigation\ViewTree.fs" />
     <Compile Include="Navigation\ViewNavigator.fs" />
+    <Compile Include="UI\ViewModelAppCompatActivity.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
