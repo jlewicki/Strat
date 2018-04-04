@@ -10,22 +10,13 @@ open Strat.Mobile.Android.DI.SimpleInjector.AppCompat
 open Strat.UI
 
 
-type MenuText = | Text of string | ResourceId of int
-type MenuItem = Item of MenuItemId:int * Text:MenuText * IconResId: option<int> 
-type MenuItems = | Items of list<MenuItem> | ResourceId of int
-
-type ResourceOr<'T> = 
-   | Value of 'T
-   | ResourceId of int
-
-
 [<AbstractClass>]
-//[<ActivityContainerPackage(typeof<HuntersActivityPackage>)>]
 type ViewModelAppCompatActivity<'ViewModel> () =
+   // TODO: don't use this base class
    inherit SimpleInjectorAppCompatActivity()
 
    let mutable _viewModel = Unchecked.defaultof<'ViewModel>
-   let mutable _actionBarMenuItems: option<ResourceOr<list<MenuItem>>> = None
+   let mutable _actionBarMenuItems: option<ResourceOrValue<list<MenuItem>>> = None
    let mutable _bindingDisposable = Disposable.Empty
    let _optionsItemSelectedSubject = new Subject<int>()
 
@@ -43,13 +34,7 @@ type ViewModelAppCompatActivity<'ViewModel> () =
    /// disposables representing subscriptions to events from the view model, or views loaded by the activity. These
    /// subscriptions will be destroyed before this method is called again with a new view model. 
    abstract BindViewModel: viewModel: 'ViewModel -> seq<IDisposable>
-
-
-   /// Called when the options menu is being populated. By default no menu items will be added, but subclases can 
-   /// override to provide the menu items specific to the activity.
-   abstract GetOptionsMenuItems: menu:IMenu -> option<MenuItems>
-   default this.GetOptionsMenuItems menu = None
-
+   
 
    /// Returns an observable that yields each time the user selects the menu intem with the specfied ID.
    member this.OptionItemSelected (menuItemId: int) : IObservable<unit> = 
@@ -59,10 +44,10 @@ type ViewModelAppCompatActivity<'ViewModel> () =
    /// Initializes the action bar for this actiivity. Activities that call this method must have a Toolbar defined in
    /// their layouts 
    member this.InitAppActionBar 
-      ( ?title: ResourceOr<string>, 
+      ( ?title: ResourceOrValue<string>, 
         ?showBackButton: bool, 
-        ?toolbar: ResourceOr<Toolbar>, 
-        ?optionsMenu: ResourceOr<list<MenuItem>> ) =
+        ?toolbar: ResourceOrValue<Toolbar>, 
+        ?optionsMenu: ResourceOrValue<list<MenuItem>> ) =
       
       let tb = 
          match toolbar with
@@ -71,7 +56,7 @@ type ViewModelAppCompatActivity<'ViewModel> () =
             if isNull tb then invalidOp "Cannot find toolbar"
             tb
          | Some (Value tb) -> tb
-         | None -> new Toolbar(this)
+         | None -> new Toolbar (this)
       this.SetSupportActionBar tb
 
       let abTitle = 
@@ -98,8 +83,8 @@ type ViewModelAppCompatActivity<'ViewModel> () =
             let group = 1
             let menuItem = 
                match text with
-               | MenuText.Text text -> menu.Add (group, id, Menu.None, text)
-               | MenuText.ResourceId resId -> menu.Add (group, id, Menu.None, resId)
+               | Value text -> menu.Add (group, id, Menu.None, text)
+               | ResourceId resId -> menu.Add (group, id, Menu.None, resId)
             menuItem.SetShowAsAction ShowAsAction.Always)
          true
       | None -> false
@@ -112,3 +97,8 @@ type ViewModelAppCompatActivity<'ViewModel> () =
       else
          _optionsItemSelectedSubject.OnNext menuItem.ItemId
          true
+
+   // Called when user hits back button in activity toolbar.
+   override this.OnNavigateUp() = 
+      this.OnBackPressed()
+      false
