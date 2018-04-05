@@ -67,7 +67,7 @@
     <Compile Include="Navigation\ViewTree.fs" />
     <Compile Include="Navigation\ViewNavigator.fs" />
     <Compile Include="UI\UITypes.fs" />
-    <Compile Include="UI\ViewModelAppCompatActivity.fs" />
+    <Compile Include="UI\SimpleAppBarAppCompatActivity.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
