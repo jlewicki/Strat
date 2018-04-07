@@ -43,9 +43,9 @@ type SimpleAppBarAppCompatActivity () =
 
       let abTitle = 
          match title with
-         | Some (ResourceId resId) ->  this.GetString resId 
+         | Some (ResourceId resId) when resId > 0 ->  this.GetString resId 
          | Some (Value title) ->  title
-         | None -> ""
+         | _ -> ""
       this.SupportActionBar.Title <- abTitle
       
       _actionBarMenuItems <- optionsMenu
