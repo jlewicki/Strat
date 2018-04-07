@@ -1,7 +1,9 @@
 ﻿namespace Strat.StateMachine
 
 open System
+open System.Reactive.Subjects
 open System.Threading.Tasks
+
 
 /// Describes the lifecycle of a state machine ahent
 type AgentLifecycle<'D,'M> =  
@@ -64,13 +66,6 @@ type internal AgentNotification<'D,'M> =
    | Stopped of option<StopReason>
 
 
-/// <summary>
-/// 
-/// </summary>
-/// <remarks>
-/// StateMachineAgent implements IDisposable. The implementation of the Dispose method synchronously stops the agent,
-/// as if the Stop method was called. Callers should recognize therefore that Dispose is a blocking method. 
-/// </remarks>
 [<Sealed>] 
 type StateMachineAgent<'D,'M>
    ( stateTree: StateTree<'D,'M>, 
@@ -84,8 +79,8 @@ type StateMachineAgent<'D,'M>
    let _handlerMapping = defaultArg handlerMapping (fun _ handler -> handler) 
    let _initialStateName = defaultArg initialStateName (rootState.Id)
    let currentLifecycle = ref AgentLifecycle.New 
-   let notifications = Event<AgentNotification<'D,'M>>()
-   let errored = Event<exn>()
+   let notifications = new Subject<AgentNotification<'D,'M>>()
+   let errored = new Subject<exn>()
 
    // Validate initial state 
    do if not (stateTree |> StateTree.tryFindState _initialStateName |> Option.isSome) then  
@@ -146,14 +141,14 @@ type StateMachineAgent<'D,'M>
    // Returns a function that raises interesting events describing how a message was processed.
    let mkPostReplyAction (msgProcessed: MessageProcessed<_,_>) (nextLifecycle: AgentLifecycle<_,_>) = 
       fun() -> 
-         notifications.Trigger (AgentNotification.MessageProcessed(msgProcessed))
+         notifications.OnNext (AgentNotification.MessageProcessed(msgProcessed))
          match msgProcessed with 
          | MessageProcessed.HandledMessage(msgHandled) when not msgHandled.ExitedStates.IsEmpty -> 
-            notifications.Trigger (AgentNotification.Transitioned(msgHandled)) 
+            notifications.OnNext (AgentNotification.Transitioned(msgHandled)) 
          | _ -> ()
          match nextLifecycle with 
          | AgentLifecycle.Stopped(_, _, _, optReason) -> 
-            notifications.Trigger (AgentNotification.Stopped optReason)
+            notifications.OnNext (AgentNotification.Stopped optReason)
          | _ -> ()
 
 
@@ -227,7 +222,7 @@ type StateMachineAgent<'D,'M>
                // default F# agent behavior of sending the exception to the Error event and never sending a reply 
                // makes life difficult for unit testing (unless a timeout is specified, calls will simply never 
                // return). 
-               let postReplyAction() = errored.Trigger ex
+               let postReplyAction() = errored.OnNext ex
                return! replyAndLoopWithAction (SMReply.ErrorReply(ex, lifecycle)) lifecycle (Some postReplyAction)
          }   
       loop AgentLifecycle.New ) 
@@ -285,18 +280,6 @@ type StateMachineAgent<'D,'M>
          |> Async.StartAsTask)
 
 
-   /// <summary> 
-   /// Stops the state machine. The calling thread is blocked until the state machine has fully stopped. 
-   /// </summary> 
-   /// <param name="timeout">
-   /// Optional timout indicating how long to wait for the state machine to stop.</param>
-   /// <param name="message">
-   /// Optional reason describing why the state machine is being stopped. 
-   /// </param>
-   /// <param name="code">
-   /// Optional application-specific code indicating the reason the state machine is being stopped.
-   /// </param>
-   /// <exception cref="System.InvalidOperationException">If the state machine has not been started.</exception> 
    member this.Stop (?message:string, ?code: int, ?timeout: TimeSpan) : unit = 
       lock currentLifecycle (fun () -> 
          match !currentLifecycle with 
@@ -306,23 +289,11 @@ type StateMachineAgent<'D,'M>
             match (smAgent.PostAndReply (dispatcher, ?timeout = timespanInMillis timeout) |> valueOrThrow) with 
             | StopReply(true, _)-> 
                (smAgent :> IDisposable).Dispose() 
-               notifications.Trigger( AgentNotification.Stopped stopReason )
+               notifications.OnNext (AgentNotification.Stopped stopReason)
             | _ -> () // Already stopped, nothing to do. 
          | _ -> ())  // Already stopped, nothing to do. 
 
 
-   /// <summary> 
-   /// Asynchronously stops the state machine. The calling thread is blocked until the state machine has fully stopped. 
-   /// </summary> 
-   /// <param name="timeout">
-   /// Optional timout indicating how long to wait for the state machine to stop.</param>
-   /// <param name="message">
-   /// Optional reason describing why the state machine is being stopped. 
-   /// </param>
-   /// <param name="code">
-   /// Optional application-specific code indicating the reason the state machine is being stopped.
-   /// </param>
-   /// <exception cref="System.InvalidOperationException">If the state machine has not been started.</exception> 
    member this.StopAsync(?message:string, ?code: int, ?timeout: TimeSpan) : Task = 
       lock currentLifecycle (fun () -> 
          match !currentLifecycle with 
@@ -335,7 +306,7 @@ type StateMachineAgent<'D,'M>
                   match reply |> valueOrThrow with 
                   | StopReply(true, _)-> 
                      (smAgent :> IDisposable).Dispose() 
-                     notifications.Trigger( AgentNotification.Stopped stopReason )
+                     notifications.OnNext (AgentNotification.Stopped stopReason)
                   | _ -> () // Already stopped, nothing to do. 
             } 
          | _ -> async.Return ()) // Already stopped, nothing to do.
@@ -369,6 +340,7 @@ type StateMachineAgent<'D,'M>
          ensureStarted() 
          smAgent.Post (SMMessage.DispatchMessage(message), None))
 
+
    member this.PostMessageWithAsyncReply(message: 'M, ?timeout: TimeSpan) : Task<MessageProcessed<'D,'M>> = 
       lock currentLifecycle (fun () -> 
          ensureStarted() 
@@ -385,32 +357,31 @@ type StateMachineAgent<'D,'M>
 
    /// Observable that publishes a notification each time a message was processed by this state machine.
    member val MessageProcessed : IObservable<MessageProcessed<'D,'M>> = 
-      notifications.Publish |> Observable.choose(function | MessageProcessed m -> Some m | _ -> None )
+      notifications |> Observable.choose(function | MessageProcessed m -> Some m | _ -> None )
       with get
 
 
     /// Observable that publishes a notification each time a state transition has occurred in this state machine.
    member val Transitioned : IObservable<MessageHandled<'D,'M>> =
-      notifications.Publish |> Observable.choose(function | Transitioned t  -> Some t | _ -> None )
+      notifications |> Observable.choose(function | Transitioned t  -> Some t | _ -> None )
       with get
 
 
    /// Observable that publishes a notification when this state machine has been started.
    member val Started : IObservable<StateMachineContext<'D,'M>> = 
-      notifications.Publish |> Observable.choose( function | Started smCtx -> Some smCtx | _ -> None )
+      notifications |> Observable.choose( function | Started smCtx -> Some smCtx | _ -> None )
       with get
       
 
    /// Observable that publishes a notification when the state machine is stopped, optionally including a description
    /// of why the machine was stopped.
    member val Stopped : IObservable<option<StopReason>> = 
-      notifications.Publish |> Observable.choose( function | Stopped reason -> Some(reason) | _ -> None )
+      notifications |> Observable.choose( function | Stopped reason -> Some(reason) | _ -> None )
       with get
 
 
-   /// Observable that publishes errors that taht occur while the state machine is processing messages.
-   member this.Error : IObservable<exn> =
-      upcast errored.Publish
+   member this.Errors : IObservable<exn> =
+      upcast errored
 
 
    interface IDisposable with 

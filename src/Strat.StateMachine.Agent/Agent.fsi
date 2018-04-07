@@ -4,6 +4,13 @@ open System
 open System.Threading.Tasks
 
 
+/// <summary>
+/// 
+/// </summary>
+/// <remarks>
+/// StateMachineAgent implements IDisposable. The implementation of the Dispose method synchronously stops the agent,
+/// as if the Stop method was called. Callers should recognize therefore that Dispose is a blocking method. 
+/// </remarks>
 [<Class; Sealed>]
 type StateMachineAgent<'D,'M> =
    interface IDisposable
@@ -11,6 +18,9 @@ type StateMachineAgent<'D,'M> =
    /// <summary>Gets the current context for the state machine.</summary> 
    /// <exception cref="System.InvalidOperationException">If the state machine lifecycle state is not Started.</exception> 
    member CurrentContext: StateMachineContext<'D,'M>
+
+   /// Observable that yields exceptions that were thrown while messages are processed.
+   member Errors: IObservable<exn>
 
    /// <summary>
    /// Starts the state machine so that it can process messages. The calling thread is blocked until the state 
@@ -52,6 +62,36 @@ type StateMachineAgent<'D,'M> =
    /// </exception> 
    /// <exception cref="System.InvalidOperationException">If the state machine lifecycle state is not Started.</exception>
    member PostMessageWithAsyncReply: message: 'M * ?timeout: TimeSpan -> Task<MessageProcessed<'D,'M>>
+
+    /// <summary> 
+   /// Stops the state machine. The calling thread is blocked until the state machine has fully stopped. 
+   /// </summary> 
+   /// <param name="timeout">
+   /// Optional timout indicating how long to wait for the state machine to stop.</param>
+   /// <param name="message">
+   /// Optional reason describing why the state machine is being stopped. 
+   /// </param>
+   /// <param name="code">
+   /// Optional application-specific code indicating the reason the state machine is being stopped.
+   /// </param>
+   /// <exception cref="System.InvalidOperationException">If the state machine has not been started.</exception> 
+   member Stop: ?message:string * ?code: int * ?timeout: TimeSpan -> unit
+
+   /// <summary> 
+   /// Asynchronously stops the state machine. The calling thread is blocked until the state machine has fully stopped. 
+   /// </summary> 
+   /// <param name="timeout">
+   /// Optional timout indicating how long to wait for the state machine to stop.</param>
+   /// <param name="message">
+   /// Optional reason describing why the state machine is being stopped. 
+   /// </param>
+   /// <param name="code">
+   /// Optional application-specific code indicating the reason the state machine is being stopped.
+   /// </param>
+   /// <exception cref="System.InvalidOperationException">If the state machine has not been started.</exception> 
+   member StopAsync: ?message:string * ?code: int * ?timeout: TimeSpan -> Task
+
+
 
 /// Provides functions for working with <c>StateMachineAgent<_, _></c> instances.
 module StateMachineAgent =
