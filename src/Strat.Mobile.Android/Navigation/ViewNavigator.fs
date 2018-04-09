@@ -6,6 +6,7 @@ open System.Reactive.Threading.Tasks
 open System.Threading.Tasks
 open Android.App
 open Android.Content
+open Android.Support.V4.App
 open Strat.Mobile.Android
 
 
@@ -39,16 +40,20 @@ type CurrentActivityViewNavigator (currentActivityProvider: ICurrentActivityProv
 
    member private this.NavigateFragment (viewInfo: FragmentViewInfo) : Task<obj> =
       async {
-         do! Async.SwitchToContext Application.SynchronizationContext
+         do! Async.SwitchToContext Android.App.Application.SynchronizationContext
          let activity = currentActivityProvider.CurrentActivity.Value
-         let fragment = Activator.CreateInstance viewInfo.FragmentType :?> Fragment
-         let fragmentManager = viewInfo.ResolveFragmentManager(activity.FragmentManager)
-         fragmentManager
-            .BeginTransaction()
-            .Replace(viewInfo.ContainerViewId, fragment, ("Fragment_" + viewInfo.StateId))
-            .Commit() 
-         |> ignore
-         // TODO: do we need to use FragmentLifecycleCallbacks to determine when fragment has started?
-         return fragment :> obj
+         match activity with
+         | :? FragmentActivity as fa ->
+            let fragment = Activator.CreateInstance viewInfo.FragmentType :?> Fragment
+            let fragmentManager = viewInfo.ResolveFragmentManager(fa.SupportFragmentManager)
+            fragmentManager
+               .BeginTransaction()
+               .Replace(viewInfo.ContainerViewId, fragment, ("Fragment_" + viewInfo.StateId))
+               .Commit() 
+            |> ignore
+            // TODO: do we need to use FragmentLifecycleCallbacks to determine when fragment has started?
+            return fragment :> obj
+         | _ ->
+            return invalidOp "Fragment navigation is only supported with FragmentActvities"
       }
       |> Async.StartAsTask

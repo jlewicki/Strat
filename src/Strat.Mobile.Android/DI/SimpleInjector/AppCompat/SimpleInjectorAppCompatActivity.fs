@@ -3,6 +3,7 @@
 open Android.App
 open SimpleInjector
 open Strat.Mobile.Android.DI.SimpleInjector
+open Android.Support.V4.App
 open Android.Support.V7.App
 
 

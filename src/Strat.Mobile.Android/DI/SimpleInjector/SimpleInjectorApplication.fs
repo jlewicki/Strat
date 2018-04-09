@@ -3,6 +3,7 @@
 open System
 open System.Collections.Generic
 open Android.App
+open Android.Support.V4.App
 open Android.Runtime
 open SimpleInjector
 
