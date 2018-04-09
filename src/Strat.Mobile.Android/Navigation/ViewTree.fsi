@@ -2,7 +2,8 @@
 
 open System
 open System.Threading.Tasks
-open Android.App
+
+open Android.Support.V4.App
 open Android.Content
 open Strat.StateMachine
 open Strat.UI
@@ -82,7 +83,7 @@ module ViewTree =
       /// with the specified ID is entered.
       /// <param name="stateId">Id of the state that, when entered, the activity should be started.</param>
       /// <param name="flags">Activity flags indicating how the activity should be started</param>
-      member Activity<'Activity when 'Activity :> Activity> : 
+      member Activity<'Activity when 'Activity :> Android.App.Activity> : 
          stateId: StateId *
          flags: option<ActivityFlags> -> ActivityStateView<'D,'M>
 
@@ -94,7 +95,7 @@ module ViewTree =
       ///   corresponding to descendent states.</param>
       /// <param name="childFragmentCreators">List of functions indicating the mappings between the fragments to host, and
       ///   descendent states.</param>
-      member ActivityWithFragments<'Activity when 'Activity :> Activity> :
+      member ActivityWithFragments<'Activity when 'Activity :> FragmentActivity> :
          stateId: StateId *
          flags: option<ActivityFlags> *
          containerViewId: int *
@@ -137,11 +138,11 @@ module ViewTree =
       ///   Id of the state that, when entered, the activity should be started.</param>
       /// <param name="flags">
       ///   Activity flags indicating how the activity should be started</param>
-      member MvvmActivity<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
+      member MvvmActivity<'Activity, 'ViewModel when 'Activity :> Android.App.Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
          stateId: StateId *
          flags: option<ActivityFlags> -> ActivityStateView<'D,'M>
       
-      member MvvmActivityWithFragments<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
+      member MvvmActivityWithFragments<'Activity, 'ViewModel when 'Activity :> FragmentActivity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct> :
          stateId: StateId *
          flags: option<ActivityFlags> * 
          containerViewId: int *

@@ -4,8 +4,8 @@ open System
 open System.Reactive.Subjects
 open System.Threading
 open System.Threading.Tasks
-open Android.App
 open Android.Content
+open Android.Support.V4.App
 open Strat.StateMachine
 open Strat.StateMachine.Definition
 open Strat.UI
@@ -77,17 +77,13 @@ module ViewTree =
       (viewModelFactory: IViewModelFactory<'D>)
       (viewInfo: ViewInfo) 
       (handler: StateHandler<'D,'M>) =
-         let mutable model : BehaviorSubject<'D> = null
+         let mutable dataSubject : BehaviorSubject<'D> = null
          { OnEnter = TransitionHandler.Async(fun transCtx -> 
             async {
                let! oView, nextData = navigateOnEnter viewNavigator viewInfo handler.OnEnter transCtx
-               // Convert state machine context data to a model. This model should be the 'root data' for the view
-               // model. The view model may expose values derived from this root state, but user commands can only
-               // affect this root data.
-               //let initModel = nextData |> dataToModel
-               model <- new BehaviorSubject<'D> (nextData)
-               // Build a view model for the view, handing it the root state
-               let viewModel = viewModelFactory.CreateViewModel<'ViewModel> model
+               dataSubject <- new BehaviorSubject<'D> (nextData)
+               // Build a view model for the view, handing it the data subject
+               let viewModel = viewModelFactory.CreateViewModel<'ViewModel> dataSubject
                // Hand the view model to the view, doing so on the UI thread.
                do! Async.SwitchToContext uiSyncContext
                (oView :?> 'View).SetViewModel viewModel
@@ -102,16 +98,15 @@ module ViewTree =
                   // If an internal transition was performed, yield a new 'root data' value. The view model should observe
                   // this new value, and UI appropriately.
                   do! Async.SwitchToContext uiSyncContext
-                  //model.OnNext (nextData |> dataToModel)
-                  model.OnNext nextData
+                  dataSubject.OnNext nextData
                   do! Async.SwitchToThreadPool ()
                | _ -> ()
                return msgResult 
            })
            OnExit = TransitionHandler.Async (fun ctx -> async {
                // We no longer need the subject that yields the model, since we are exiting the state.
-               model.OnCompleted()
-               model.Dispose()
+               dataSubject.OnCompleted()
+               dataSubject.Dispose()
                return! Machine.Run.transitionHandler handler.OnExit ctx
            })
          }
@@ -168,20 +163,22 @@ module ViewTree =
    type StateViewTree<'D,'M> = list<ActivityStateView<'D,'M>>
 
 
-   let newActivityInfo<'Activity when 'Activity :> Activity>
+   let newActivityInfo<'Activity when 'Activity :> Android.App.Activity>
       (stateId: StateId)
       (flags: option<ActivityFlags>) =
-         let _flags = defaultArg flags (ActivityFlags.NewTask ||| ActivityFlags.ClearTask)
+         // By default, we want to have the state machine data drive the the state if the UI, so we only want to have one instance
+         // of the activity that represents the state active at a time. These flags will ensure that is the case.
+         let _flags = defaultArg flags (ActivityFlags.NewTask ||| ActivityFlags.SingleTop ||| ActivityFlags.ClearTop)
          ActivityViewInfo (stateId, typeof<'Activity>, _flags)
 
 
-   let activityWithFragmentsCore<'D, 'M, 'TActivity when 'TActivity :> Activity> 
+   let activityWithFragmentsCore<'D, 'M, 'Activity when 'Activity :> FragmentActivity> 
       (createStateView: ActivityViewInfo * list<FragmentStateView<'D,'M>> -> ActivityStateView<'D,'M>)
       (stateId: StateId)
       (flags: option<ActivityFlags>)
       (containerViewId: int)
       (childFragmentCreators: list<CreateFragmentStateView<'D,'M>>) =
-         let navInfo = newActivityInfo<'TActivity> stateId flags
+         let navInfo = newActivityInfo<'Activity> stateId flags
          let childFragmentViews = 
             childFragmentCreators 
             |> List.map (fun (CreateFragmentStateView creator) -> creator id containerViewId)
@@ -211,13 +208,13 @@ module ViewTree =
    type Builder<'D, 'M>() = 
       static member Instance = new Builder<'D,'M>()
 
-      member this.Activity<'Activity when 'Activity :> Activity>
+      member this.Activity<'Activity when 'Activity :> Android.App.Activity>
          ( stateId: StateId,      
            flags: option<ActivityFlags> ) =
          let navInfo = newActivityInfo<'Activity> stateId flags
          SimpleActivityStateView<'D,'M> (navInfo, List.empty) :> ActivityStateView<'D,'M>
 
-      member this.ActivityWithFragments<'Activity when 'Activity :> Activity>
+      member this.ActivityWithFragments<'Activity when 'Activity :> FragmentActivity>
          ( stateId: StateId, 
            flags: option<ActivityFlags>,
            containerViewId: int,
@@ -238,13 +235,13 @@ module ViewTree =
          let createStateView (fvi, fsvs) = SimpleFragmentStateView<'D, 'M> (fvi, fsvs) :> FragmentStateView<'D,'M>
          fragmentWithFragmentsCore createStateView stateId containerViewId childFragmentCreators
 
-      member this.MvvmActivity<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct>
+      member this.MvvmActivity<'Activity, 'ViewModel when 'Activity :> Android.App.Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct>
          ( stateId: StateId,
            flags: option<ActivityFlags> ) =
          let navInfo = newActivityInfo<'Activity> stateId flags
          MvvmActivityStateView<'D, 'M, 'Activity, 'ViewModel> (navInfo, List.empty) :> ActivityStateView<'D,'M>
 
-      member this.MvvmActivityWithFragments<'Activity, 'ViewModel when 'Activity :> Activity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct>
+      member this.MvvmActivityWithFragments<'Activity, 'ViewModel when 'Activity :> FragmentActivity and 'Activity :> IView<'ViewModel> and 'ViewModel: not struct>
          ( stateId: StateId,
            flags: option<ActivityFlags>,
            containerViewId: int,
