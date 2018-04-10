@@ -131,7 +131,7 @@ module ViewTree =
         childViews: list<FragmentStateView<'D,'M>>) =
       inherit FragmentStateView<'D,'M>(viewInfo, childViews)
       override this.CreateHandlerWrapper (uiSyncContext, navigator, viewModelFactory) = 
-        mvvmNavigationHandler uiSyncContext navigator viewModelFactory (ViewInfo.Fragment viewInfo)
+        mvvmNavigationHandler<'D, 'M, 'View, 'ViewModel> uiSyncContext navigator viewModelFactory (ViewInfo.Fragment viewInfo)
 
 
    [<AbstractClass>]
@@ -172,19 +172,7 @@ module ViewTree =
          ActivityViewInfo (stateId, typeof<'Activity>, _flags)
 
 
-   let activityWithFragmentsCore<'D, 'M, 'Activity when 'Activity :> FragmentActivity> 
-      (createStateView: ActivityViewInfo * list<FragmentStateView<'D,'M>> -> ActivityStateView<'D,'M>)
-      (stateId: StateId)
-      (flags: option<ActivityFlags>)
-      (containerViewId: int)
-      (childFragmentCreators: list<CreateFragmentStateView<'D,'M>>) =
-         let navInfo = newActivityInfo<'Activity> stateId flags
-         let childFragmentViews = 
-            childFragmentCreators 
-            |> List.map (fun (CreateFragmentStateView creator) -> creator id containerViewId)
-         createStateView (navInfo, childFragmentViews) 
-
-
+ 
    let fragmentWithFragmentsCore<'D, 'M,'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> 
       (createStateView: FragmentViewInfo * list<FragmentStateView<'D,'M>> -> FragmentStateView<'D,'M>)
       (stateId: StateId)
@@ -219,8 +207,11 @@ module ViewTree =
            flags: option<ActivityFlags>,
            containerViewId: int,
            childFragmentCreators: list<CreateFragmentStateView<'D,'M>> ) =
-         let createStateView (avi, fsvs) = SimpleActivityStateView<'D, 'M> (avi, fsvs) :> ActivityStateView<'D,'M>
-         activityWithFragmentsCore createStateView stateId flags containerViewId childFragmentCreators
+         let navInfo = newActivityInfo<'Activity> stateId flags
+         let childFragmentViews = 
+            childFragmentCreators 
+            |> List.map (fun (CreateFragmentStateView creator) -> creator id containerViewId)
+         SimpleActivityStateView<'D, 'M> (navInfo, childFragmentViews) :> ActivityStateView<'D,'M>
 
       member this.Fragment<'Fragment when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment)> 
          ( stateId: StateId ) =
@@ -245,10 +236,13 @@ module ViewTree =
          ( stateId: StateId,
            flags: option<ActivityFlags>,
            containerViewId: int,
-           childFragmentCreators: list<CreateFragmentStateView<'D,'M>> ) =
-         let createStateView (avi, fsvs) = MvvmActivityStateView<'D, 'M, 'Activity, 'ViewModel> (avi, fsvs) :> ActivityStateView<'D,'M>
-         activityWithFragmentsCore createStateView stateId flags containerViewId childFragmentCreators
-
+           childFragmentCreators: list<CreateFragmentStateView<'D,'M>> ) : ActivityStateView<'D,'M> =
+         let navInfo = newActivityInfo<'Activity> stateId flags
+         let childFragmentViews = 
+            childFragmentCreators 
+            |> List.map (fun (CreateFragmentStateView creator) -> creator id containerViewId)
+         MvvmActivityStateView<'D, 'M, 'Activity, 'ViewModel> (navInfo, childFragmentViews) :> ActivityStateView<'D,'M>
+         
       member this.MvvmFragment<'Fragment, 'ViewModel when 'Fragment :> Fragment and 'Fragment : (new : unit -> 'Fragment) and 'Fragment :> IView<'ViewModel> and 'ViewModel: not struct>
          ( stateId: StateId ) =
          CreateFragmentStateView (fun resolveFragManager containerViewId ->
