@@ -19,7 +19,10 @@ type StateMachineAgent<'D,'M> =
    /// <exception cref="System.InvalidOperationException">If the state machine lifecycle state is not Started.</exception> 
    member CurrentContext: StateMachineContext<'D,'M>
 
-   /// Observable that yields exceptions that were thrown while messages are processed.
+   /// Gets an observable that yields each time the data is updated after the state machibe processes a message.
+   member Data : IObservable<'D>
+
+   /// Gets an observable that yields each time an exception is thrown while the state machine processes a message.
    member Errors: IObservable<exn>
 
    /// <summary>

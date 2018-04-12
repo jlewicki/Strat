@@ -354,6 +354,10 @@ type StateMachineAgent<'D,'M>
          }
          |> Async.StartAsTask)
 
+   member val Data : IObservable<'D> =
+      notifications |> Observable.choose(function | MessageProcessed (HandledMessage h) -> Some (h.NextData) | _ -> None )
+      with get
+
 
    /// Observable that publishes a notification each time a message was processed by this state machine.
    member val MessageProcessed : IObservable<MessageProcessed<'D,'M>> = 
