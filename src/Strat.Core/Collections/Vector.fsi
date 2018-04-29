@@ -69,6 +69,10 @@ module Vector =
    [<CompiledName("OfSeq")>]
    val inline ofSeq: items:seq<'T> -> Vector<'T>
 
+   /// O(N): Returns a new vector containing the items in the specified list.
+   [<CompiledName("OfSeq")>]
+   val inline ofList: items:list<'T> -> Vector<'T>
+
    /// O(N): Returns a new vector containing the items in the specified array.
    [<CompiledName("OfArray")>]
    val inline ofArray: items:array<'T> -> Vector<'T>

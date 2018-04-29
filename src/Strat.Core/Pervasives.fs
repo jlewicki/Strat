@@ -147,7 +147,6 @@ module Pervasives =
             comparison v1 v2
       }
 
-
 /// Functional programming operators for tuples with 2 items.
 module Tuple2 = 
 
@@ -253,5 +252,16 @@ module Tuple4 =
       elif i = 2 then (item0, item1, f item2, item3)
       elif i = 3 then (item0, item1, item2, f item3)
       else raise <| invalidArg "i" "i must be 0 or 1"
+
+
+/// Functional programming operators for the Async type
+module Async =
+
+   /// Function for the async Bind operation.
+   let inline bind f m = 
+      async.Bind (m, f)
+
+   /// Symbolic operator for the async Bind operation.
+   let (>>=) m f = async.Bind (m, f)
 
 
