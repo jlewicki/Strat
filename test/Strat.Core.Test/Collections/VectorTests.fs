@@ -121,6 +121,18 @@ module Vector =
          Assert.Equal(largeArray, pv)
 
 
+   module AddAll = 
+      [<Fact>]
+      let should_add_items_at_end_of_vector() = 
+         let initArray = Array.unfold (fun i -> if i < 35 then Some(-1 *(i + 1), i + 1) else None) 0
+         let initVector = Vector.ofArray initArray
+
+         let largeArray = Array.unfold (fun i -> if i < 35 then Some(i + 1, i + 1) else None) 0
+         let v = initVector |> Vector.addAll largeArray
+
+         Assert.Equal( (Array.append initArray largeArray), v)
+
+
    module RemoveLast = 
       [<Fact>]
       let should_remove_last_element() = 

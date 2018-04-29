@@ -130,6 +130,11 @@ module Vector =
    let inline add item (v: Vector<'T>) =
       v.Add item
 
+   [<CompiledName("AddRange")>]
+   let addAll items (v: Vector<'T>) =
+      new Vector<'U> (addAll items v.Trie)
+
+
    [<CompiledName("Append")>]
    let append (l1: Vector<'T>) (l2: Vector<'T>) =
       if l1.IsEmpty then l2

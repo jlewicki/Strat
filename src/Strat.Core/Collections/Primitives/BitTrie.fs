@@ -589,6 +589,12 @@ module BitTrie =
       t.ToPersistentTrie()
 
 
+   let addAll (items: seq<'T>) (trie: Trie<'T>) = 
+      let t = Transient.toTransientTrie trie
+      items |> Seq.iter t.Add
+      t.ToPersistentTrie()
+
+
    let mapi revIter (f: int -> 'T -> 'U) (trie:Trie<'T>) =
       let f = OptimizedClosures.FSharpFunc<_,_,_>.Adapt (f)
       let count = trie.Count
