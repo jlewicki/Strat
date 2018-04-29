@@ -257,7 +257,6 @@ module IndexList =
 
 
    [<CompiledName("Exists")>]
-
    let exists (predicate:'T -> bool) (l: IndexList<'T>) : bool =
       exists true predicate l.Trie
 
