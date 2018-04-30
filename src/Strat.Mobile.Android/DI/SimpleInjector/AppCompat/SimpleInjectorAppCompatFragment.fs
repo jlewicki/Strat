@@ -1,9 +1,8 @@
-﻿namespace Strat.Mobile.Android.DI.SimpleInjector
+﻿namespace Strat.Mobile.Android.DI.SimpleInjector.AppCompat
 
-open System
-open Android.App
+open Android.Support.V4.App
 open SimpleInjector
-
+open Strat.Mobile.Android.DI.SimpleInjector
 
 type SimpleInjectorFragment () =
    inherit Fragment ()

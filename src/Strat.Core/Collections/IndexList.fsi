@@ -71,6 +71,10 @@ module IndexList =
    [<CompiledName("OfSeq")>]
    val inline ofSeq: items:seq<'T> -> IndexList<'T>
 
+   /// O(N): Returns a new list containing the items in the specified sequence.
+   [<CompiledName("OfList")>]
+   val inline ofList: items:list<'T> -> IndexList<'T>
+
    /// O(N): Returns a new list containing the items in the specified array.
    [<CompiledName("OfArray")>]
    val inline ofArray: items:array<'T> -> IndexList<'T>

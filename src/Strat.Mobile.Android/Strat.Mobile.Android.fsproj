@@ -15,7 +15,7 @@
     <AndroidApplication>False</AndroidApplication>
     <AndroidUseLatestPlatformSdk>True</AndroidUseLatestPlatformSdk>
     <AssemblyName>Strat.Mobile.Android</AssemblyName>
-    <TargetFrameworkVersion>v8.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v8.1</TargetFrameworkVersion>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
     <TargetFrameworkProfile />
     <Name>Strat.Mobile.Android</Name>
@@ -38,7 +38,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>PdbOnly</DebugType>
     <DebugSymbols>True</DebugSymbols>
-    <Optimize>True</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Release</OutputPath>
     <DefineConstants>
     </DefineConstants>
@@ -48,7 +48,7 @@
     <AndroidManagedSymbols>true</AndroidManagedSymbols>
     <AndroidUseSharedRuntime>False</AndroidUseSharedRuntime>
     <ConsolePause>False</ConsolePause>
-    <Tailcalls>True</Tailcalls>
+    <Tailcalls>true</Tailcalls>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.FSharp.targets" />
   <ItemGroup>
@@ -60,12 +60,14 @@
     <Compile Include="DI\SimpleInjector\SimpleInjectorTypes.fs" />
     <Compile Include="DI\SimpleInjector\ChildContainerFactory.fs" />
     <Compile Include="DI\SimpleInjector\SimpleInjectorActivity.fs" />
-    <Compile Include="DI\SimpleInjector\SimpleInjectorFragment.fs" />
     <Compile Include="DI\SimpleInjector\SimpleInjectorApplication.fs" />
     <Compile Include="DI\SimpleInjector\AppCompat\SimpleInjectorAppCompatActivity.fs" />
+    <Compile Include="DI\SimpleInjector\AppCompat\SimpleInjectorAppCompatFragment.fs" />
     <Compile Include="Navigation\ViewTree.fsi" />
     <Compile Include="Navigation\ViewTree.fs" />
     <Compile Include="Navigation\ViewNavigator.fs" />
+    <Compile Include="UI\UITypes.fs" />
+    <Compile Include="UI\SimpleAppBarAppCompatActivity.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -121,6 +123,11 @@
     <ProjectReference Include="..\Strat.StateMachine\Strat.StateMachine.fsproj">
       <Name>Strat.StateMachine</Name>
       <Project>{9af0b204-c7fc-48f7-977b-5a5f6f1a68c9}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Strat.UI\Strat.UI.fsproj">
+      <Name>Strat.UI</Name>
+      <Project>{e9dadf4b-f880-4163-8c19-7982cdef8307}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>

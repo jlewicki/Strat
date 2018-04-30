@@ -69,6 +69,10 @@ module Vector =
    [<CompiledName("OfSeq")>]
    val inline ofSeq: items:seq<'T> -> Vector<'T>
 
+   /// O(N): Returns a new vector containing the items in the specified list.
+   [<CompiledName("OfList")>]
+   val inline ofList: items:list<'T> -> Vector<'T>
+
    /// O(N): Returns a new vector containing the items in the specified array.
    [<CompiledName("OfArray")>]
    val inline ofArray: items:array<'T> -> Vector<'T>
@@ -79,9 +83,13 @@ module Vector =
    val init : count:int -> f:(int -> 'T) -> Vector<'T>
    
    /// O(lg32N). Returns a new vector by adding the specified item at the end of the vector.
-   val inline add: item:'T -> Vector<'T> -> Vector<'T>
+   val inline add: item:'T -> vector: Vector<'T> -> Vector<'T>
 
-   /// O(N+M). Returns a new vector that contains the elements of the first vector,  followed by the elements the second vector.
+   /// O(N):Returns a new vector that contains the elements of the vector, followed by the elements in the sequence.
+   [<CompiledName("AddRange")>]
+   val addAll: items: seq<'T> -> vector: Vector<'T> -> Vector<'T>
+
+   /// O(N+M). Returns a new vector that contains the elements of the first vector, followed by the elements of the second vector.
    [<CompiledName("Append")>]
    val append: vector1:Vector<'T> -> vector2:Vector<'T> -> Vector<'T>
 

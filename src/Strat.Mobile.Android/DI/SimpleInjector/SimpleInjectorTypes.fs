@@ -3,9 +3,10 @@
 open System
 open System.Linq.Expressions
 open System.Reflection
-open SimpleInjector
-open Android.App
 open System.Runtime.CompilerServices
+open Android.App
+open Android.Support.V4.App
+open SimpleInjector
 
 
 // Attribute indicating that a property on an an activity/fragment is intended to recieve its value from the DI

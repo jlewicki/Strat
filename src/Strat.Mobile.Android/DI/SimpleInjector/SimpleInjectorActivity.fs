@@ -12,14 +12,7 @@ type SimpleInjectorActivity() =
    inherit Activity() 
 
    let mutable _activityContainer = Unchecked.defaultof<Container>
-  
-   [<Inject>]
-   member val FragmentContainerFactory = Unchecked.defaultof<IChildContainerFactory<Fragment>> with get, set
-   
-   interface IFragmentContainerFactory with
-      member this.CreateFragmentContainer owner =
-         this.FragmentContainerFactory.CreateChildContainer (owner, _activityContainer)
-   
+    
    override this.OnCreate (savedInstanceState) =
       base.OnCreate (savedInstanceState)
 
