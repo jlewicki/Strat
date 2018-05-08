@@ -132,7 +132,7 @@ module Vector =
 
    [<CompiledName("AddRange")>]
    let addAll items (v: Vector<'T>) =
-      new Vector<'U> (addAll items v.Trie)
+      new Vector<'T> (addAll items v.Trie)
 
 
    [<CompiledName("Append")>]
@@ -213,7 +213,7 @@ module Vector =
 
    [<CompiledName("Reverse")>]
    let rev (v: Vector<'T>) = 
-      new Vector<'U> (rev false v.Trie)
+      new Vector<'T> (rev false v.Trie)
 
 
    [<CompiledName("TryFind")>]

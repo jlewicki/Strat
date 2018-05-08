@@ -222,7 +222,7 @@ module IndexList =
 
    [<CompiledName("Reverse")>]
    let rev (v: IndexList<'T>) = 
-      new IndexList<'U> (rev true v.Trie)
+      new IndexList<'T> (rev true v.Trie)
 
 
    [<CompiledName("TryFind")>]
